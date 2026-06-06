@@ -36,6 +36,14 @@ NEXT_PUBLIC_STORE_ID=demo-store
 
 `NEXT_PUBLIC_` 값은 브라우저에 노출됩니다. Supabase `anon key`만 넣고 service role key는 절대 넣지 마세요.
 
+현재 앱은 개인 코드 로그인 방식입니다. 기본 개발자 코드는 아래와 같습니다.
+
+```text
+PARK-88-DEV
+```
+
+운영 DB를 쓰려면 `supabase/schema.sql` 실행 후 위 환경변수를 Vercel에 등록하고 다시 배포해야 합니다. 환경변수가 없으면 기기별 localStorage 데모 모드로 동작하므로 여러 휴대폰이 같은 데이터를 공유하지 않습니다.
+
 ## 3. Vercel 배포
 
 GitHub 저장소와 Vercel을 연결하면 push마다 Preview, main 브랜치 push마다 Production 배포가 만들어집니다.

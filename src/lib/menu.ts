@@ -1,0 +1,63 @@
+import type { MenuCategory, MenuItem, TableArea } from "@/lib/types";
+
+export const developerCode = "PARK-88-DEV";
+
+export const tableAreas: Record<TableArea, { label: string; tables: string[] }> = {
+  indoor: { label: "실내", tables: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "14", "15"] },
+  middle: { label: "미들", tables: ["17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29"] },
+  yard: { label: "야장", tables: ["31", "33", "35", "37", "38", "39", "40", "41", "42", "43", "44", "46", "48"] },
+  custom: { label: "기타", tables: [] },
+};
+
+export const menuCategoryLabels: Record<MenuCategory, string> = {
+  main: "안주",
+  fried: "튀김",
+  meal: "식사/사리",
+  side: "간편",
+  drink: "음료",
+  alcohol: "주류",
+};
+
+export const menuItems: MenuItem[] = [
+  { id: "m-한우곱도리탕", category: "main", name: "한우 곱도리탕", price: 25000 },
+  { id: "m-대전닭한마리칼국수", category: "main", name: "88 대전 닭한마리 칼국수", price: 23000 },
+  { id: "m-춘천순살닭도리탕", category: "main", name: "춘천 순살 닭도리탕", price: 23000 },
+  { id: "m-엄성부대찌개", category: "main", name: "엄성부대찌개", price: 22000 },
+  { id: "m-도끼스치즈떡볶이", category: "main", name: "도끼스 치즈 떡볶이", price: 21000 },
+  { id: "m-부산어묵탕", category: "main", name: "부산어묵탕", price: 22000 },
+  { id: "m-88백골뱅이", category: "main", name: "88 백골뱅이+육수", price: 22000 },
+  { id: "m-곱창전골", category: "main", name: "곱창전골", price: 22000 },
+  { id: "m-물닭구이", category: "main", name: "물닭구이", price: 24000 },
+  { id: "m-순살후라이드", category: "fried", name: "순살후라이드", price: 22000 },
+  { id: "m-후라이드한마리", category: "fried", name: "후라이드한마리", price: 23000 },
+  { id: "m-똥집튀김", category: "fried", name: "똥집튀김", price: 14000 },
+  { id: "m-염통꼬치", category: "fried", name: "염통꼬치", price: 11000 },
+  { id: "m-버팔로윙", category: "fried", name: "버팔로윙", price: 12000 },
+  { id: "m-감자튀김", category: "fried", name: "감자튀김", price: 9000 },
+  { id: "m-고구마치즈스틱", category: "fried", name: "고구마치즈스틱", price: 10000 },
+  { id: "m-케이준감자튀김", category: "fried", name: "케이준감자튀김", price: 9000 },
+  { id: "m-냉면", category: "meal", name: "냉면", price: 6000 },
+  { id: "m-물냉면", category: "meal", name: "물냉면", price: 6000 },
+  { id: "m-비빔냉면", category: "meal", name: "비빔냉면", price: 6000 },
+  { id: "m-우동사리", category: "meal", name: "우동사리", price: 2000 },
+  { id: "m-라면사리", category: "meal", name: "라면사리", price: 2000 },
+  { id: "m-쫄면사리", category: "meal", name: "쫄면사리", price: 2000 },
+  { id: "m-공기밥", category: "meal", name: "공기밥", price: 1500 },
+  { id: "m-볶음밥", category: "meal", name: "볶음밥", price: 3000 },
+  { id: "m-진로", category: "alcohol", name: "진로", price: 5500 },
+  { id: "m-참이슬", category: "alcohol", name: "참이슬", price: 5500 },
+  { id: "m-새로", category: "alcohol", name: "새로", price: 5500 },
+  { id: "m-카스", category: "alcohol", name: "카스", price: 5500 },
+  { id: "m-테라", category: "alcohol", name: "테라", price: 5500 },
+  { id: "m-켈리", category: "alcohol", name: "켈리", price: 5500 },
+  { id: "m-린", category: "alcohol", name: "린", price: 5500 },
+  { id: "m-청하", category: "alcohol", name: "청하", price: 6500 },
+  { id: "m-매화수", category: "alcohol", name: "매화수", price: 6500 },
+  { id: "m-심술", category: "alcohol", name: "심술", price: 7000 },
+  { id: "m-콜라", category: "drink", name: "콜라", price: 2500 },
+  { id: "m-사이다", category: "drink", name: "사이다", price: 2500 },
+  { id: "m-환타", category: "drink", name: "환타", price: 2500 },
+  { id: "m-제로콜라", category: "drink", name: "제로콜라", price: 3000 },
+  { id: "m-파워에이드", category: "drink", name: "파워에이드", price: 2500 },
+  { id: "m-밀키스", category: "drink", name: "밀키스", price: 2500 },
+];

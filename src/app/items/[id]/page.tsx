@@ -19,14 +19,20 @@ export default function ItemDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuthUser();
-  const { items, logs, updateQuantity } = useInventory(user);
+  const { items, logs, updateQuantity, updateItemDetails } = useInventory(user);
   const item = items.find((candidate) => candidate.id === decodeURIComponent(params.id));
   const [quantity, setQuantity] = useState(0);
+  const [unit, setUnit] = useState("");
+  const [minimumQuantity, setMinimumQuantity] = useState(0);
   const [memo, setMemo] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (item) setQuantity(item.quantity);
+    if (item) {
+      setQuantity(item.quantity);
+      setUnit(item.unit);
+      setMinimumQuantity(item.minimumQuantity);
+    }
   }, [item]);
 
   const itemLogs = useMemo(() => logs.filter((log) => log.itemId === item?.id).slice(0, 5), [item?.id, logs]);
@@ -35,10 +41,11 @@ export default function ItemDetailPage() {
     event.preventDefault();
     if (!item) return;
     setSaving(true);
-    await updateQuantity(item.id, quantity, memo.trim() || undefined);
+    await updateItemDetails(item.id, unit, minimumQuantity);
+    await updateQuantity(item.id, quantity, memo.trim() || undefined, unit);
     setSaving(false);
     setMemo("");
-    router.refresh();
+    router.push("/dashboard?updated=inventory");
   }
 
   if (!item) {
@@ -63,8 +70,8 @@ export default function ItemDetailPage() {
           <ItemStatusBadge status={item.status} />
         </div>
         <p className="text-secondary">
-          {categoryLabels[item.category]} · 최소 {item.minimumQuantity}
-          {item.unit}
+          {categoryLabels[item.category]} · 최소 {minimumQuantity}
+          {unit}
         </p>
       </header>
 
@@ -79,12 +86,22 @@ export default function ItemDetailPage() {
           <span className="mb-2 block text-sm text-secondary">직접 입력</span>
           <Input inputMode="numeric" type="number" min={0} value={quantity} onChange={(event) => setQuantity(Number(event.target.value))} />
         </label>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block">
+            <span className="mb-2 block text-sm text-secondary">단위</span>
+            <Input value={unit} onChange={(event) => setUnit(event.target.value)} />
+          </label>
+          <label className="block">
+            <span className="mb-2 block text-sm text-secondary">최소 수량</span>
+            <Input inputMode="numeric" type="number" min={0} value={minimumQuantity} onChange={(event) => setMinimumQuantity(Number(event.target.value))} />
+          </label>
+        </div>
         <label className="block">
           <span className="mb-2 block text-sm text-secondary">메모</span>
           <Textarea value={memo} onChange={(event) => setMemo(event.target.value)} placeholder="예: 창고에도 남은 수량 없음" />
         </label>
         <Button className="w-full" size="lg" disabled={saving}>
-          {saving ? "저장 중" : "수량 저장"}
+          {saving ? "저장 중" : "저장하고 홈으로"}
         </Button>
       </form>
 

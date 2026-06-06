@@ -1,0 +1,98 @@
+"use client";
+
+import { FormEvent, useState } from "react";
+import { Phone } from "lucide-react";
+import { MobileShell } from "@/components/layout/MobileShell";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
+import { Textarea } from "@/components/ui/Textarea";
+import type { ReservationZone } from "@/lib/types";
+import { useAuthUser, useOperations } from "@/lib/useInventory";
+import { cn, formatTime } from "@/lib/utils";
+
+const statusLabels = {
+  reserved: "예약",
+  arrived: "도착",
+  no_show: "노쇼",
+  canceled: "취소",
+};
+
+export default function ReservationsPage() {
+  const { user } = useAuthUser();
+  const { reservations, addReservation, updateReservationStatus } = useOperations(user);
+  const [zone, setZone] = useState<ReservationZone>("middle");
+  const [name, setName] = useState("");
+  const [partySize, setPartySize] = useState(2);
+  const [phone, setPhone] = useState("");
+  const [memo, setMemo] = useState("");
+
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    await addReservation({ zone, name, partySize, phone, memo: memo.trim() || undefined });
+    setName("");
+    setPartySize(2);
+    setPhone("");
+    setMemo("");
+  }
+
+  return (
+    <MobileShell>
+      <header className="mb-5">
+        <p className="text-sm text-secondary">순서대로 확인</p>
+        <h1 className="mt-1 text-3xl font-bold">예약</h1>
+      </header>
+
+      <Card>
+        <form className="space-y-3" onSubmit={onSubmit}>
+          <div className="grid grid-cols-2 gap-2">
+            {(["middle", "yard"] as ReservationZone[]).map((value) => (
+              <button
+                type="button"
+                key={value}
+                onClick={() => setZone(value)}
+                className={cn("h-12 rounded-lg border border-border font-semibold text-secondary", zone === value && "border-accent bg-accent text-white")}
+              >
+                {value === "middle" ? "미들" : "야장"}
+              </button>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Input placeholder="이름" value={name} onChange={(event) => setName(event.target.value)} required />
+            <Input type="number" min={1} placeholder="인원" value={partySize} onChange={(event) => setPartySize(Number(event.target.value))} required />
+          </div>
+          <Input inputMode="tel" placeholder="전화번호" value={phone} onChange={(event) => setPhone(event.target.value)} required />
+          <Textarea placeholder="메모" value={memo} onChange={(event) => setMemo(event.target.value)} />
+          <Button className="w-full" size="lg">예약 추가</Button>
+        </form>
+      </Card>
+
+      <section className="mt-6 space-y-3">
+        {reservations.length ? (
+          reservations.map((reservation, index) => (
+            <Card key={reservation.id} className={cn(reservation.status !== "reserved" && "opacity-60")}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-xs text-secondary">#{index + 1} · {reservation.zone === "middle" ? "미들" : "야장"} · {formatTime(reservation.createdAt)}</div>
+                  <h2 className="mt-1 text-xl font-bold">{reservation.name} · {reservation.partySize}명</h2>
+                  <a className="mt-2 inline-flex items-center gap-2 text-accent" href={`tel:${reservation.phone}`}>
+                    <Phone size={16} /> {reservation.phone}
+                  </a>
+                  {reservation.memo ? <p className="mt-2 text-sm text-secondary">{reservation.memo}</p> : null}
+                </div>
+                <span className="rounded-full border border-border px-3 py-1 text-xs text-secondary">{statusLabels[reservation.status]}</span>
+              </div>
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                <Button variant="secondary" onClick={() => updateReservationStatus(reservation.id, "arrived")}>왔다</Button>
+                <Button variant="secondary" onClick={() => updateReservationStatus(reservation.id, "no_show")}>안 옴</Button>
+                <Button variant="ghost" onClick={() => updateReservationStatus(reservation.id, "canceled")}>취소</Button>
+              </div>
+            </Card>
+          ))
+        ) : (
+          <p className="text-sm text-secondary">아직 예약이 없습니다.</p>
+        )}
+      </section>
+    </MobileShell>
+  );
+}

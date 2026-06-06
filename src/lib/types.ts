@@ -1,6 +1,10 @@
-export type UserRole = "staff" | "manager" | "admin";
+export type UserRole = "staff" | "manager" | "admin" | "developer";
 export type Category = "drink" | "alcohol" | "cooking" | "hall";
 export type ItemStatus = "normal" | "low" | "empty" | "unknown";
+export type ReservationZone = "middle" | "yard";
+export type ReservationStatus = "reserved" | "arrived" | "no_show" | "canceled";
+export type TableArea = "indoor" | "middle" | "yard" | "custom";
+export type TableMemoStatus = "open" | "closed";
 
 export type User = {
   id: string;
@@ -64,3 +68,68 @@ export type DailyClosing = {
 };
 
 export type ClosingCheck = Record<string, boolean>;
+
+export type StaffUser = {
+  id: string;
+  storeId: string;
+  name: string;
+  code: string;
+  role: UserRole;
+  active: boolean;
+  createdAt: string;
+};
+
+export type Reservation = {
+  id: string;
+  storeId: string;
+  zone: ReservationZone;
+  name: string;
+  partySize: number;
+  phone: string;
+  status: ReservationStatus;
+  memo?: string;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+  createdByName: string;
+};
+
+export type MenuCategory = "main" | "fried" | "meal" | "side" | "drink" | "alcohol";
+
+export type MenuItem = {
+  id: string;
+  category: MenuCategory;
+  name: string;
+  price: number;
+};
+
+export type TableOrderLine = {
+  menuId: string;
+  name: string;
+  quantity: number;
+  price: number;
+};
+
+export type TableMemo = {
+  id: string;
+  storeId: string;
+  area: TableArea;
+  tableNo: string;
+  orders: TableOrderLine[];
+  note?: string;
+  status: TableMemoStatus;
+  createdAt: string;
+  updatedAt: string;
+  updatedByName: string;
+};
+
+export type SoldOutMenu = {
+  id: string;
+  storeId: string;
+  menuName: string;
+  reason?: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdByName: string;
+};

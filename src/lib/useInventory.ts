@@ -1,25 +1,54 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { developerCode } from "@/lib/menu";
 import { createSeedItems, STORE_ID } from "@/lib/seed";
 import { getStatus } from "@/lib/status";
 import { getSupabase, hasSupabaseEnv } from "@/lib/supabase";
 import { todayKey } from "@/lib/utils";
-import type { ClosingCheck, DailyClosing, InventoryLog, Item, User } from "@/lib/types";
+import type {
+  ClosingCheck,
+  DailyClosing,
+  InventoryLog,
+  Item,
+  Reservation,
+  ReservationStatus,
+  SoldOutMenu,
+  StaffUser,
+  TableMemo,
+  TableOrderLine,
+  User,
+} from "@/lib/types";
 
 const ITEMS_KEY = "hall-stock-items";
 const LOGS_KEY = "hall-stock-logs";
 const CLOSINGS_KEY = "hall-stock-closings";
 const CHECKS_KEY = "hall-stock-closing-checks";
 const USER_KEY = "hall-stock-user";
+const STAFF_KEY = "hall-stock-staff";
+const RESERVATIONS_KEY = "hall-stock-reservations";
+const TABLE_MEMOS_KEY = "hall-stock-table-memos";
+const SOLD_OUT_KEY = "hall-stock-sold-out";
 
 const defaultUser: User = {
-  id: "demo-user",
+  id: "developer-park",
   name: "박찬웅",
-  email: "staff@hallstock.local",
-  role: "manager",
+  email: "developer@hallstock.local",
+  role: "developer",
   createdAt: new Date().toISOString(),
 };
+
+const defaultStaff: StaffUser[] = [
+  {
+    id: "developer-park",
+    storeId: STORE_ID,
+    name: "박찬웅",
+    code: developerCode,
+    role: "developer",
+    active: true,
+    createdAt: new Date().toISOString(),
+  },
+];
 
 function readJson<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -33,6 +62,13 @@ function readJson<T>(key: string, fallback: T): T {
 
 function writeJson<T>(key: string, value: T) {
   window.localStorage.setItem(key, JSON.stringify(value));
+}
+
+function ensureDemoStaff() {
+  const current = readJson<StaffUser[]>(STAFF_KEY, []);
+  if (current.length) return current;
+  writeJson(STAFF_KEY, defaultStaff);
+  return defaultStaff;
 }
 
 function fromDbItem(row: any): Item {
@@ -128,21 +164,43 @@ export function useAuthUser() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  const signIn = useCallback(async (email: string, password: string) => {
+  const signIn = useCallback(async (code: string) => {
+    const normalizedCode = code.trim();
     const supabase = getSupabase();
     if (!supabase) {
-      const demoUser = { ...defaultUser, email, name: email.split("@")[0] || "직원" };
+      const staff = ensureDemoStaff().find((member) => member.active && member.code === normalizedCode);
+      if (!staff) return { message: "등록되지 않은 코드입니다." };
+      const demoUser = {
+        id: staff.id,
+        name: staff.name,
+        email: `${staff.id}@hallstock.local`,
+        role: staff.role,
+        createdAt: staff.createdAt,
+      };
       writeJson(USER_KEY, demoUser);
       setUser(demoUser);
       return null;
     }
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.rpc("login_with_staff_code", {
+      p_store_id: STORE_ID,
+      p_code: normalizedCode,
+    });
+    if (error) return error;
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) return { message: "등록되지 않은 코드입니다." };
+    const appUser = {
+      id: row.id,
+      name: row.name,
+      email: `${row.id}@hallstock.local`,
+      role: row.role,
+      createdAt: row.created_at,
+    };
+    writeJson(USER_KEY, appUser);
+    setUser(appUser);
     return error;
   }, []);
 
   const signOut = useCallback(async () => {
-    const supabase = getSupabase();
-    if (supabase) await supabase.auth.signOut();
     window.localStorage.removeItem(USER_KEY);
     setUser(null);
   }, []);
@@ -230,14 +288,16 @@ export function useInventory(user?: User | null) {
   }, [broadcast, checks, closings, logs]);
 
   const updateQuantity = useCallback(
-    async (itemId: string, quantity: number, memo?: string) => {
+    async (itemId: string, quantity: number, memo?: string, unit?: string) => {
       const currentUser = user || defaultUser;
       const current = items.find((item) => item.id === itemId);
       if (!current) return;
       const nextQuantity = Math.max(0, Math.round(quantity));
+      const nextUnit = unit?.trim() || current.unit;
       const now = new Date().toISOString();
       const nextItem: Item = {
         ...current,
+        unit: nextUnit,
         quantity: nextQuantity,
         status: getStatus(nextQuantity, current.minimumQuantity),
         updatedAt: now,
@@ -251,7 +311,7 @@ export function useInventory(user?: User | null) {
         category: current.category,
         beforeQuantity: current.quantity,
         afterQuantity: nextQuantity,
-        unit: current.unit,
+        unit: nextUnit,
         memo,
         updatedBy: currentUser.id,
         updatedByName: currentUser.name,
@@ -263,6 +323,7 @@ export function useInventory(user?: User | null) {
         const { error } = await supabase.rpc("update_item_quantity", {
           p_item_id: itemId,
           p_after_quantity: nextQuantity,
+          p_unit: nextUnit,
           p_memo: memo || null,
           p_updated_by: currentUser.id,
           p_updated_by_name: currentUser.name,
@@ -278,6 +339,45 @@ export function useInventory(user?: User | null) {
       persistDemo(nextItems, nextLogs);
     },
     [items, logs, persistDemo, user],
+  );
+
+  const updateItemDetails = useCallback(
+    async (itemId: string, unit: string, minimumQuantity: number) => {
+      const currentUser = user || defaultUser;
+      const current = items.find((item) => item.id === itemId);
+      if (!current) return;
+      const now = new Date().toISOString();
+      const nextItem: Item = {
+        ...current,
+        unit: unit.trim() || current.unit,
+        minimumQuantity: Math.max(0, Math.round(minimumQuantity)),
+        status: getStatus(current.quantity, Math.max(0, Math.round(minimumQuantity))),
+        updatedAt: now,
+        updatedBy: currentUser.name,
+      };
+
+      const supabase = getSupabase();
+      if (supabase) {
+        const { error } = await supabase
+          .from("items")
+          .update({
+            unit: nextItem.unit,
+            minimum_quantity: nextItem.minimumQuantity,
+            status: nextItem.status,
+            updated_at: nextItem.updatedAt,
+            updated_by: currentUser.id,
+            updated_by_name: currentUser.name,
+          })
+          .eq("id", itemId);
+        if (error) throw error;
+        return;
+      }
+
+      const nextItems = items.map((item) => (item.id === itemId ? nextItem : item));
+      setItems(nextItems);
+      persistDemo(nextItems);
+    },
+    [items, persistDemo, user],
   );
 
   const toggleCheck = useCallback(
@@ -348,8 +448,313 @@ export function useInventory(user?: User | null) {
     checks,
     loading,
     updateQuantity,
+    updateItemDetails,
     toggleCheck,
     checkAll,
     completeClosing,
+  };
+}
+
+function fromDbStaff(row: any): StaffUser {
+  return {
+    id: row.id,
+    storeId: row.store_id,
+    name: row.name,
+    code: row.code,
+    role: row.role,
+    active: row.active,
+    createdAt: row.created_at,
+  };
+}
+
+function fromDbReservation(row: any): Reservation {
+  return {
+    id: row.id,
+    storeId: row.store_id,
+    zone: row.zone,
+    name: row.name,
+    partySize: row.party_size,
+    phone: row.phone,
+    status: row.status,
+    memo: row.memo || undefined,
+    sortOrder: row.sort_order,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    createdByName: row.created_by_name,
+  };
+}
+
+function fromDbTableMemo(row: any): TableMemo {
+  return {
+    id: row.id,
+    storeId: row.store_id,
+    area: row.area,
+    tableNo: row.table_no,
+    orders: row.orders || [],
+    note: row.note || undefined,
+    status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    updatedByName: row.updated_by_name,
+  };
+}
+
+function fromDbSoldOut(row: any): SoldOutMenu {
+  return {
+    id: row.id,
+    storeId: row.store_id,
+    menuName: row.menu_name,
+    reason: row.reason || undefined,
+    active: row.active,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    createdByName: row.created_by_name,
+  };
+}
+
+export function useOperations(user?: User | null) {
+  const [staff, setStaff] = useState<StaffUser[]>([]);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [tableMemos, setTableMemos] = useState<TableMemo[]>([]);
+  const [soldOutMenus, setSoldOutMenus] = useState<SoldOutMenu[]>([]);
+  const [loading, setLoading] = useState(true);
+  const broadcast = useMemo(() => (typeof window !== "undefined" ? new BroadcastChannel("hall-stock-ops") : null), []);
+
+  const loadDemo = useCallback(() => {
+    const demoStaff = ensureDemoStaff();
+    setStaff(demoStaff);
+    setReservations(readJson<Reservation[]>(RESERVATIONS_KEY, []));
+    setTableMemos(readJson<TableMemo[]>(TABLE_MEMOS_KEY, []));
+    setSoldOutMenus(readJson<SoldOutMenu[]>(SOLD_OUT_KEY, []));
+    setLoading(false);
+  }, []);
+
+  const loadSupabase = useCallback(async () => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    const [{ data: staffRows }, { data: reservationRows }, { data: memoRows }, { data: soldOutRows }] = await Promise.all([
+      supabase.from("app_users").select("*").eq("store_id", STORE_ID).order("created_at"),
+      supabase.from("reservations").select("*").eq("store_id", STORE_ID).order("sort_order"),
+      supabase.from("table_memos").select("*").eq("store_id", STORE_ID).eq("status", "open").order("updated_at", { ascending: false }),
+      supabase.from("sold_out_menus").select("*").eq("store_id", STORE_ID).eq("active", true).order("created_at", { ascending: false }),
+    ]);
+    if (!staffRows?.length) {
+      await supabase.from("app_users").upsert(defaultStaff.map((member) => ({
+        id: member.id,
+        store_id: member.storeId,
+        name: member.name,
+        code: member.code,
+        role: member.role,
+        active: member.active,
+        created_at: member.createdAt,
+      })));
+    }
+    setStaff((staffRows || defaultStaff).map(fromDbStaff));
+    setReservations((reservationRows || []).map(fromDbReservation));
+    setTableMemos((memoRows || []).map(fromDbTableMemo));
+    setSoldOutMenus((soldOutRows || []).map(fromDbSoldOut));
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    const supabase = getSupabase();
+    if (!supabase) {
+      loadDemo();
+      broadcast?.addEventListener("message", loadDemo);
+      return () => {
+        broadcast?.removeEventListener("message", loadDemo);
+        broadcast?.close();
+      };
+    }
+
+    loadSupabase();
+    const channel = supabase
+      .channel("hall-stock-operations")
+      .on("postgres_changes", { event: "*", schema: "public", table: "app_users", filter: `store_id=eq.${STORE_ID}` }, loadSupabase)
+      .on("postgres_changes", { event: "*", schema: "public", table: "reservations", filter: `store_id=eq.${STORE_ID}` }, loadSupabase)
+      .on("postgres_changes", { event: "*", schema: "public", table: "table_memos", filter: `store_id=eq.${STORE_ID}` }, loadSupabase)
+      .on("postgres_changes", { event: "*", schema: "public", table: "sold_out_menus", filter: `store_id=eq.${STORE_ID}` }, loadSupabase)
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [broadcast, loadDemo, loadSupabase]);
+
+  const persistDemo = useCallback((nextReservations = reservations, nextMemos = tableMemos, nextSoldOut = soldOutMenus, nextStaff = staff) => {
+    writeJson(RESERVATIONS_KEY, nextReservations);
+    writeJson(TABLE_MEMOS_KEY, nextMemos);
+    writeJson(SOLD_OUT_KEY, nextSoldOut);
+    writeJson(STAFF_KEY, nextStaff);
+    broadcast?.postMessage("changed");
+  }, [broadcast, reservations, soldOutMenus, staff, tableMemos]);
+
+  const addStaff = useCallback(async (name: string, code: string, role: StaffUser["role"] = "staff") => {
+    const member: StaffUser = {
+      id: crypto.randomUUID(),
+      storeId: STORE_ID,
+      name,
+      code: code.trim(),
+      role,
+      active: true,
+      createdAt: new Date().toISOString(),
+    };
+    const supabase = getSupabase();
+    if (supabase) {
+      const { error } = await supabase.from("app_users").insert({
+        id: member.id,
+        store_id: member.storeId,
+        name: member.name,
+        code: member.code,
+        role: member.role,
+        active: member.active,
+        created_at: member.createdAt,
+      });
+      if (error) throw error;
+      return;
+    }
+    const nextStaff = [...staff, member];
+    setStaff(nextStaff);
+    persistDemo(reservations, tableMemos, soldOutMenus, nextStaff);
+  }, [persistDemo, reservations, soldOutMenus, staff, tableMemos]);
+
+  const addReservation = useCallback(async (input: Pick<Reservation, "zone" | "name" | "partySize" | "phone" | "memo">) => {
+    const now = new Date().toISOString();
+    const reservation: Reservation = {
+      id: crypto.randomUUID(),
+      storeId: STORE_ID,
+      zone: input.zone,
+      name: input.name,
+      partySize: input.partySize,
+      phone: input.phone,
+      memo: input.memo,
+      status: "reserved",
+      sortOrder: Date.now(),
+      createdAt: now,
+      updatedAt: now,
+      createdByName: user?.name || "직원",
+    };
+    const supabase = getSupabase();
+    if (supabase) {
+      const { error } = await supabase.from("reservations").insert({
+        id: reservation.id,
+        store_id: reservation.storeId,
+        zone: reservation.zone,
+        name: reservation.name,
+        party_size: reservation.partySize,
+        phone: reservation.phone,
+        status: reservation.status,
+        memo: reservation.memo || null,
+        sort_order: reservation.sortOrder,
+        created_by_name: reservation.createdByName,
+      });
+      if (error) throw error;
+      return;
+    }
+    const next = [...reservations, reservation].sort((a, b) => a.sortOrder - b.sortOrder);
+    setReservations(next);
+    persistDemo(next);
+  }, [persistDemo, reservations, user?.name]);
+
+  const updateReservationStatus = useCallback(async (id: string, status: ReservationStatus) => {
+    const supabase = getSupabase();
+    if (supabase) {
+      const { error } = await supabase.from("reservations").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
+      if (error) throw error;
+      return;
+    }
+    const next = reservations.map((reservation) => (reservation.id === id ? { ...reservation, status, updatedAt: new Date().toISOString() } : reservation));
+    setReservations(next);
+    persistDemo(next);
+  }, [persistDemo, reservations]);
+
+  const saveTableMemo = useCallback(async (memo: Partial<TableMemo> & { area: TableMemo["area"]; tableNo: string; orders: TableOrderLine[] }) => {
+    const now = new Date().toISOString();
+    const nextMemo: TableMemo = {
+      id: memo.id || crypto.randomUUID(),
+      storeId: STORE_ID,
+      area: memo.area,
+      tableNo: memo.tableNo,
+      orders: memo.orders,
+      note: memo.note,
+      status: memo.status || "open",
+      createdAt: memo.createdAt || now,
+      updatedAt: now,
+      updatedByName: user?.name || "직원",
+    };
+    const supabase = getSupabase();
+    if (supabase) {
+      const { error } = await supabase.from("table_memos").upsert({
+        id: nextMemo.id,
+        store_id: nextMemo.storeId,
+        area: nextMemo.area,
+        table_no: nextMemo.tableNo,
+        orders: nextMemo.orders,
+        note: nextMemo.note || null,
+        status: nextMemo.status,
+        updated_at: nextMemo.updatedAt,
+        updated_by_name: nextMemo.updatedByName,
+      });
+      if (error) throw error;
+      return;
+    }
+    const next = [nextMemo, ...tableMemos.filter((row) => row.id !== nextMemo.id)];
+    setTableMemos(next);
+    persistDemo(reservations, next);
+  }, [persistDemo, reservations, tableMemos, user?.name]);
+
+  const addSoldOutMenu = useCallback(async (menuName: string, reason?: string) => {
+    const now = new Date().toISOString();
+    const soldOut: SoldOutMenu = {
+      id: crypto.randomUUID(),
+      storeId: STORE_ID,
+      menuName,
+      reason,
+      active: true,
+      createdAt: now,
+      updatedAt: now,
+      createdByName: user?.name || "직원",
+    };
+    const supabase = getSupabase();
+    if (supabase) {
+      const { error } = await supabase.from("sold_out_menus").insert({
+        id: soldOut.id,
+        store_id: soldOut.storeId,
+        menu_name: soldOut.menuName,
+        reason: soldOut.reason || null,
+        active: true,
+        created_by_name: soldOut.createdByName,
+      });
+      if (error) throw error;
+      return;
+    }
+    const next = [soldOut, ...soldOutMenus];
+    setSoldOutMenus(next);
+    persistDemo(reservations, tableMemos, next);
+  }, [persistDemo, reservations, soldOutMenus, tableMemos, user?.name]);
+
+  const resolveSoldOutMenu = useCallback(async (id: string) => {
+    const supabase = getSupabase();
+    if (supabase) {
+      const { error } = await supabase.from("sold_out_menus").update({ active: false, updated_at: new Date().toISOString() }).eq("id", id);
+      if (error) throw error;
+      return;
+    }
+    const next = soldOutMenus.map((menu) => (menu.id === id ? { ...menu, active: false, updatedAt: new Date().toISOString() } : menu));
+    setSoldOutMenus(next);
+    persistDemo(reservations, tableMemos, next);
+  }, [persistDemo, reservations, soldOutMenus, tableMemos]);
+
+  return {
+    staff,
+    reservations,
+    tableMemos,
+    soldOutMenus: soldOutMenus.filter((menu) => menu.active),
+    loading,
+    addStaff,
+    addReservation,
+    updateReservationStatus,
+    saveTableMemo,
+    addSoldOutMenu,
+    resolveSoldOutMenu,
   };
 }

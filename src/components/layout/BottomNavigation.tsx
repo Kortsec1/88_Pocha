@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ClipboardCheck, History, Home, Package, Settings } from "lucide-react";
+import { CalendarDays, ClipboardList, Home, Package, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const links = [
   { href: "/dashboard", label: "홈", icon: Home },
-  { href: "/items", label: "품목", icon: Package },
-  { href: "/closing", label: "마감", icon: ClipboardCheck },
-  { href: "/history", label: "이력", icon: History },
+  { href: "/items", label: "재고", icon: Package },
+  { href: "/reservations", label: "예약", icon: CalendarDays },
+  { href: "/tables", label: "테이블", icon: ClipboardList },
   { href: "/settings", label: "설정", icon: Settings },
 ];
 
