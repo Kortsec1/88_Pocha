@@ -90,7 +90,7 @@ export function useAuthUser() {
   useEffect(() => {
     const supabase = getSupabase();
     if (!supabase) {
-      setUser(readJson(USER_KEY, defaultUser));
+      setUser(readJson<User | null>(USER_KEY, null));
       setLoading(false);
       return;
     }

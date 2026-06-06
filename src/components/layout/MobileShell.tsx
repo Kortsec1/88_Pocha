@@ -3,7 +3,6 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
-import { hasSupabaseEnv } from "@/lib/supabase";
 import { useAuthUser } from "@/lib/useInventory";
 
 export function MobileShell({ children }: { children: React.ReactNode }) {
@@ -12,12 +11,12 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuthUser();
 
   useEffect(() => {
-    if (hasSupabaseEnv() && !loading && !user && pathname !== "/login") {
+    if (!loading && !user && pathname !== "/login") {
       router.replace("/login");
     }
   }, [loading, pathname, router, user]);
 
-  if (hasSupabaseEnv() && !loading && !user) {
+  if (!loading && !user) {
     return (
       <main className="min-h-dvh bg-background px-4 py-10 text-primary">
         <p className="text-secondary">로그인 화면으로 이동 중입니다.</p>
