@@ -28,14 +28,22 @@ export default function TablesPage() {
   const [category, setCategory] = useState<MenuCategory>("main");
   const [orders, setOrders] = useState<TableOrderLine[]>([]);
   const [note, setNote] = useState("");
+  const [lastAdded, setLastAdded] = useState("");
 
   const selectedTableNo = area === "custom" ? customTableNo : tableNo;
   const filteredMenus = useMemo(() => menus.filter((item) => item.category === category), [category, menus]);
   const total = orders.reduce((sum, order) => sum + order.price * order.quantity, 0);
+  const itemCount = orders.reduce((sum, order) => sum + order.quantity, 0);
+  const selectedNames = orders.slice(0, 3).map((order) => `${order.name} ${order.quantity}`).join(", ");
+
+  function selectedQuantity(menuId: string) {
+    return orders.find((order) => order.menuId === menuId)?.quantity || 0;
+  }
 
   function addMenu(menuId: string) {
     const menu = menus.find((item) => item.id === menuId);
     if (!menu) return;
+    setLastAdded(menu.name);
     setOrders((current) => {
       const existing = current.find((order) => order.menuId === menu.id);
       if (existing) {
@@ -47,6 +55,7 @@ export default function TablesPage() {
 
   function addFreeRequest(name: string) {
     const id = `request-${name}`;
+    setLastAdded(name);
     setOrders((current) => {
       const existing = current.find((order) => order.menuId === id);
       if (existing) {
@@ -78,6 +87,12 @@ export default function TablesPage() {
         <p className="text-sm text-secondary">테이블별 임시 주문 저장</p>
         <h1 className="mt-1 text-3xl font-bold">테이블 메모</h1>
       </header>
+
+      {lastAdded ? (
+        <div className="mb-3 rounded-lg border border-success/20 bg-success/10 px-4 py-3 text-sm font-bold text-success">
+          {lastAdded} 추가됨
+        </div>
+      ) : null}
 
       <Card>
         <form className="space-y-4" onSubmit={onSubmit}>
@@ -128,17 +143,28 @@ export default function TablesPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            {filteredMenus.map((menu) => (
+            {filteredMenus.map((menu) => {
+              const quantity = selectedQuantity(menu.id);
+              return (
               <button
                 key={menu.id}
                 type="button"
                 onClick={() => addMenu(menu.id)}
-                className="min-h-20 rounded-lg border border-border bg-elevated p-3 text-left active:scale-[0.98]"
+                className={cn(
+                  "relative min-h-20 rounded-lg border bg-elevated p-3 text-left transition active:scale-[0.98]",
+                  quantity ? "border-accent bg-accent/5 shadow-soft" : "border-border",
+                )}
               >
                 <div className="text-sm font-bold leading-5">{menu.name}</div>
                 <div className="mt-1 text-xs text-secondary">{formatPrice(menu.price)}원</div>
+                {quantity ? (
+                  <span className="absolute right-2 top-2 flex h-7 min-w-7 items-center justify-center rounded-full bg-accent px-2 text-sm font-black text-white">
+                    {quantity}
+                  </span>
+                ) : null}
               </button>
-            ))}
+              );
+            })}
           </div>
 
           <div>
@@ -149,9 +175,12 @@ export default function TablesPage() {
                   key={request}
                   type="button"
                   onClick={() => addFreeRequest(request)}
-                  className="h-10 shrink-0 rounded-full border border-border bg-surface px-4 text-sm font-semibold text-secondary"
+                  className={cn(
+                    "h-10 shrink-0 rounded-full border px-4 text-sm font-semibold",
+                    selectedQuantity(`request-${request}`) ? "border-accent bg-accent text-white" : "border-border bg-surface text-secondary",
+                  )}
                 >
-                  {request}
+                  {request}{selectedQuantity(`request-${request}`) ? ` ${selectedQuantity(`request-${request}`)}` : ""}
                 </button>
               ))}
             </div>
@@ -177,9 +206,21 @@ export default function TablesPage() {
           ) : null}
 
           <Textarea placeholder="요청사항, 단체 주문 구분 등" value={note} onChange={(event) => setNote(event.target.value)} />
-          <Button className="w-full" size="lg" disabled={!selectedTableNo || !orders.length}>
-            <Save size={18} /> {selectedTableNo ? `${tableAreas[area].label} ${selectedTableNo} 저장` : "테이블 선택"}
-          </Button>
+          <div className="sticky bottom-24 z-20 rounded-lg border border-accent/20 bg-surface p-3 shadow-soft">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="font-bold">{selectedTableNo ? `${tableAreas[area].label} ${selectedTableNo}` : "테이블 선택 필요"}</div>
+                <div className="truncate text-sm text-secondary">{itemCount ? selectedNames : "선택한 메뉴가 없습니다"}</div>
+              </div>
+              <div className="shrink-0 text-right">
+                <div className="text-xs text-secondary">합계</div>
+                <div className="font-black text-accent">{formatPrice(total)}원</div>
+              </div>
+            </div>
+            <Button className="w-full" size="lg" disabled={!selectedTableNo || !orders.length}>
+              <Save size={18} /> 주문 메모 저장
+            </Button>
+          </div>
         </form>
       </Card>
 

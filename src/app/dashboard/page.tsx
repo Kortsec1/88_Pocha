@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { AlertTriangle, Ban, CalendarClock, CalendarDays, ClipboardList, Package } from "lucide-react";
 import { ItemCard } from "@/components/inventory/ItemCard";
 import { MobileShell } from "@/components/layout/MobileShell";
 import { Button } from "@/components/ui/Button";
@@ -26,7 +25,7 @@ function DashboardContent() {
       <header className="mb-5">
         <div>
           <p className="text-sm text-secondary">{formatDate()}</p>
-          <h1 className="mt-1 text-3xl font-bold">운영 대시보드</h1>
+          <h1 className="mt-1 text-3xl font-black"><span className="text-success">88</span><span className="text-accent">포차 운영판</span></h1>
         </div>
       </header>
 
@@ -35,34 +34,43 @@ function DashboardContent() {
         <div className="mb-4 rounded-lg border border-success/40 bg-success/10 p-3 text-sm font-semibold text-success">재고 수정이 저장됐습니다.</div>
       ) : null}
 
-      <section className="grid grid-cols-2 gap-3">
-        <Link href="/items" className="rounded-lg border border-border bg-surface p-4">
-          <Package className="mb-3 text-accent" size={22} />
-          <div className="text-3xl font-bold">{needs.length}</div>
-          <div className="mt-1 text-sm text-secondary">재고 확인 필요</div>
+      <section className="rounded-lg border border-accent/15 bg-surface p-4 shadow-soft">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <div className="text-sm font-bold text-accent">TODAY</div>
+            <div className="text-xl font-black">홀 운영 요약</div>
+          </div>
+          <div className="rounded-full bg-accent px-3 py-1 text-sm font-black text-white">1988</div>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+        <Link href="/items" className="rounded-lg bg-elevated p-4">
+          <div className="text-sm font-bold text-accent">재고</div>
+          <div className="mt-2 text-3xl font-black">{needs.length}</div>
+          <div className="mt-1 text-sm text-secondary">확인 필요</div>
           <div className="mt-2 text-xs text-secondary">정상 {normalCount} / 전체 {items.length}</div>
         </Link>
-        <Link href="/reservations" className="rounded-lg border border-border bg-surface p-4">
-          <CalendarDays className="mb-3 text-warning" size={22} />
-          <div className="text-3xl font-bold">{waitingReservations.length}</div>
+        <Link href="/reservations" className="rounded-lg bg-elevated p-4">
+          <div className="text-sm font-bold text-warning">웨이팅</div>
+          <div className="mt-2 text-3xl font-black">{waitingReservations.length}</div>
           <div className="mt-1 text-sm text-secondary">웨이팅 접수</div>
         </Link>
-        <Link href="/bookings" className="rounded-lg border border-border bg-surface p-4">
-          <CalendarClock className="mb-3 text-success" size={22} />
-          <div className="text-3xl font-bold">{activeBookings.length}</div>
+        <Link href="/bookings" className="rounded-lg bg-elevated p-4">
+          <div className="text-sm font-bold text-success">예약</div>
+          <div className="mt-2 text-3xl font-black">{activeBookings.length}</div>
           <div className="mt-1 text-sm text-secondary">금일 예약</div>
         </Link>
-        <Link href="/tables" className="rounded-lg border border-border bg-surface p-4">
-          <ClipboardList className="mb-3 text-accent" size={22} />
-          <div className="text-3xl font-bold">{tableMemos.length}</div>
+        <Link href="/tables" className="rounded-lg bg-elevated p-4">
+          <div className="text-sm font-bold text-accent">테이블</div>
+          <div className="mt-2 text-3xl font-black">{tableMemos.length}</div>
           <div className="mt-1 text-sm text-secondary">테이블 메모</div>
         </Link>
+        </div>
       </section>
 
       <Link href="/soldout" className="mt-3 block rounded-lg border border-border bg-surface p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Ban className="text-danger" size={22} />
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-danger/10 text-sm font-black text-danger">품절</span>
             <div>
               <div className="font-semibold">품절 메뉴</div>
               <div className="text-sm text-secondary">{soldOutMenus.length ? soldOutMenus.map((menu) => menu.menuName).join(", ") : "등록된 품절 메뉴 없음"}</div>
@@ -97,7 +105,7 @@ function DashboardContent() {
       <section className="mt-6">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-lg font-semibold">
-            <AlertTriangle className="text-warning" size={20} /> 재고 알림
+            재고 알림
           </h2>
           <span className="text-sm text-secondary">{needs.length}개</span>
         </div>

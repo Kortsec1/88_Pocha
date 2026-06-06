@@ -6,13 +6,12 @@ import { KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
-import { developerCode } from "@/lib/menu";
 import { useAuthUser } from "@/lib/useInventory";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { signIn, demoMode } = useAuthUser();
-  const [code, setCode] = useState(developerCode);
+  const { signIn } = useAuthUser();
+  const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -43,10 +42,9 @@ export default function LoginPage() {
               <span className="mb-2 flex items-center gap-2 text-sm text-secondary">
                 <KeyRound size={16} /> 개인 코드
               </span>
-              <Input value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} required autoComplete="one-time-code" />
+              <Input value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} required autoComplete="one-time-code" placeholder="개인 코드를 입력하세요" />
             </label>
             {error ? <p className="rounded-lg border border-danger/40 bg-danger/10 p-3 text-sm text-danger">{error}</p> : null}
-            {demoMode ? <p className="text-sm text-secondary">개발자 기본 코드: {developerCode}</p> : null}
             <Button className="w-full" size="lg" disabled={saving}>
               {saving ? "확인 중" : "코드로 로그인"}
             </Button>
