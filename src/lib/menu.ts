@@ -18,7 +18,7 @@ export const menuCategoryLabels: Record<MenuCategory, string> = {
   alcohol: "주류",
 };
 
-export const menuItems: MenuItem[] = [
+export const initialMenuItems: MenuItem[] = [
   { id: "m-한우곱도리탕", category: "main", name: "한우 곱도리탕", price: 25000 },
   { id: "m-대전닭한마리칼국수", category: "main", name: "88 대전 닭한마리 칼국수", price: 23000 },
   { id: "m-춘천순살닭도리탕", category: "main", name: "춘천 순살 닭도리탕", price: 23000 },

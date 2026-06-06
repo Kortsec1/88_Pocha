@@ -3,6 +3,7 @@ export type Category = "drink" | "alcohol" | "cooking" | "hall";
 export type ItemStatus = "normal" | "low" | "empty" | "unknown";
 export type ReservationZone = "middle" | "yard";
 export type ReservationStatus = "reserved" | "arrived" | "no_show" | "canceled";
+export type BookingStatus = "scheduled" | "seated" | "completed" | "canceled";
 export type TableArea = "indoor" | "middle" | "yard" | "custom";
 export type TableMemoStatus = "open" | "closed";
 
@@ -98,9 +99,12 @@ export type MenuCategory = "main" | "fried" | "meal" | "side" | "drink" | "alcoh
 
 export type MenuItem = {
   id: string;
+  storeId?: string;
   category: MenuCategory;
   name: string;
   price: number;
+  active?: boolean;
+  updatedAt?: string;
 };
 
 export type TableOrderLine = {
@@ -129,6 +133,21 @@ export type SoldOutMenu = {
   menuName: string;
   reason?: string;
   active: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdByName: string;
+};
+
+export type TodayBooking = {
+  id: string;
+  storeId: string;
+  title: string;
+  partySize: number;
+  menu: string;
+  time: string;
+  tables: string[];
+  status: BookingStatus;
+  memo?: string;
   createdAt: string;
   updatedAt: string;
   createdByName: string;

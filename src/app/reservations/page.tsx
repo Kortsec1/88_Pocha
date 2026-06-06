@@ -12,9 +12,9 @@ import { useAuthUser, useOperations } from "@/lib/useInventory";
 import { cn, formatTime } from "@/lib/utils";
 
 const statusLabels = {
-  reserved: "예약",
-  arrived: "도착",
-  no_show: "노쇼",
+  reserved: "접수",
+  arrived: "입장 완료",
+  no_show: "미방문",
   canceled: "취소",
 };
 
@@ -39,8 +39,8 @@ export default function ReservationsPage() {
   return (
     <MobileShell>
       <header className="mb-5">
-        <p className="text-sm text-secondary">순서대로 확인</p>
-        <h1 className="mt-1 text-3xl font-bold">예약</h1>
+        <p className="text-sm text-secondary">방문 대기 고객 관리</p>
+        <h1 className="mt-1 text-3xl font-bold">웨이팅 현황</h1>
       </header>
 
       <Card>
@@ -63,7 +63,7 @@ export default function ReservationsPage() {
           </div>
           <Input inputMode="tel" placeholder="전화번호" value={phone} onChange={(event) => setPhone(event.target.value)} required />
           <Textarea placeholder="메모" value={memo} onChange={(event) => setMemo(event.target.value)} />
-          <Button className="w-full" size="lg">예약 추가</Button>
+          <Button className="w-full" size="lg">웨이팅 등록</Button>
         </form>
       </Card>
 
@@ -83,14 +83,14 @@ export default function ReservationsPage() {
                 <span className="rounded-full border border-border px-3 py-1 text-xs text-secondary">{statusLabels[reservation.status]}</span>
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2">
-                <Button variant="secondary" onClick={() => updateReservationStatus(reservation.id, "arrived")}>왔다</Button>
-                <Button variant="secondary" onClick={() => updateReservationStatus(reservation.id, "no_show")}>안 옴</Button>
+                <Button variant="secondary" onClick={() => updateReservationStatus(reservation.id, "arrived")}>입장 완료</Button>
+                <Button variant="secondary" onClick={() => updateReservationStatus(reservation.id, "no_show")}>미방문</Button>
                 <Button variant="ghost" onClick={() => updateReservationStatus(reservation.id, "canceled")}>취소</Button>
               </div>
             </Card>
           ))
         ) : (
-          <p className="text-sm text-secondary">아직 예약이 없습니다.</p>
+          <p className="text-sm text-secondary">현재 접수된 웨이팅이 없습니다.</p>
         )}
       </section>
     </MobileShell>

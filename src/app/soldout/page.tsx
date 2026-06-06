@@ -6,13 +6,12 @@ import { MobileShell } from "@/components/layout/MobileShell";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
-import { menuItems } from "@/lib/menu";
 import { useAuthUser, useOperations } from "@/lib/useInventory";
 import { formatTime } from "@/lib/utils";
 
 export default function SoldOutPage() {
   const { user } = useAuthUser();
-  const { soldOutMenus, addSoldOutMenu, resolveSoldOutMenu } = useOperations(user);
+  const { soldOutMenus, addSoldOutMenu, resolveSoldOutMenu, menus } = useOperations(user);
   const [menuName, setMenuName] = useState("");
   const [reason, setReason] = useState("");
 
@@ -33,7 +32,7 @@ export default function SoldOutPage() {
         <form className="space-y-3" onSubmit={onSubmit}>
           <Input list="menu-list" placeholder="메뉴명" value={menuName} onChange={(event) => setMenuName(event.target.value)} required />
           <datalist id="menu-list">
-            {menuItems.map((item) => <option key={item.id} value={item.name} />)}
+            {menus.map((item) => <option key={item.id} value={item.name} />)}
           </datalist>
           <Input placeholder="사유" value={reason} onChange={(event) => setReason(event.target.value)} />
           <Button className="w-full" size="lg"><Ban size={18} /> 판매 불가 추가</Button>

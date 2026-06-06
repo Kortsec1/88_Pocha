@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
-import { menuCategoryLabels, menuItems, tableAreas } from "@/lib/menu";
+import { menuCategoryLabels, tableAreas } from "@/lib/menu";
 import type { MenuCategory, TableArea, TableOrderLine } from "@/lib/types";
 import { useAuthUser, useOperations } from "@/lib/useInventory";
 import { cn, formatTime } from "@/lib/utils";
@@ -20,7 +20,7 @@ function formatPrice(value: number) {
 
 export default function TablesPage() {
   const { user } = useAuthUser();
-  const { tableMemos, saveTableMemo } = useOperations(user);
+  const { tableMemos, saveTableMemo, menus } = useOperations(user);
   const [area, setArea] = useState<TableArea>("indoor");
   const [tableNo, setTableNo] = useState("1");
   const [customTableNo, setCustomTableNo] = useState("");
@@ -29,11 +29,11 @@ export default function TablesPage() {
   const [note, setNote] = useState("");
 
   const selectedTableNo = area === "custom" ? customTableNo : tableNo;
-  const filteredMenus = useMemo(() => menuItems.filter((item) => item.category === category), [category]);
+  const filteredMenus = useMemo(() => menus.filter((item) => item.category === category), [category, menus]);
   const total = orders.reduce((sum, order) => sum + order.price * order.quantity, 0);
 
   function addMenu(menuId: string) {
-    const menu = menuItems.find((item) => item.id === menuId);
+    const menu = menus.find((item) => item.id === menuId);
     if (!menu) return;
     setOrders((current) => {
       const existing = current.find((order) => order.menuId === menu.id);

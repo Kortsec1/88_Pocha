@@ -104,6 +104,32 @@ create table if not exists public.sold_out_menus (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.menu_items (
+  id text primary key,
+  store_id text not null references public.stores(id) on delete cascade,
+  category text not null check (category in ('main', 'fried', 'meal', 'side', 'drink', 'alcohol')),
+  name text not null,
+  price integer not null default 0 check (price >= 0),
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.today_bookings (
+  id uuid primary key default gen_random_uuid(),
+  store_id text not null references public.stores(id) on delete cascade,
+  title text not null,
+  party_size integer not null check (party_size > 0),
+  menu text not null,
+  time text not null,
+  tables jsonb not null default '[]'::jsonb,
+  status text not null check (status in ('scheduled', 'seated', 'completed', 'canceled')) default 'scheduled',
+  memo text,
+  created_by_name text not null default '직원',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 alter table public.stores enable row level security;
 alter table public.profiles enable row level security;
 alter table public.items enable row level security;
@@ -113,6 +139,8 @@ alter table public.app_users enable row level security;
 alter table public.reservations enable row level security;
 alter table public.table_memos enable row level security;
 alter table public.sold_out_menus enable row level security;
+alter table public.menu_items enable row level security;
+alter table public.today_bookings enable row level security;
 
 drop policy if exists "authenticated can read stores" on public.stores;
 create policy "authenticated can read stores"
@@ -252,6 +280,20 @@ to anon
 using (true)
 with check (true);
 
+drop policy if exists "anon can manage menu items" on public.menu_items;
+create policy "anon can manage menu items"
+on public.menu_items for all
+to anon
+using (true)
+with check (true);
+
+drop policy if exists "anon can manage today bookings" on public.today_bookings;
+create policy "anon can manage today bookings"
+on public.today_bookings for all
+to anon
+using (true)
+with check (true);
+
 create or replace function public.login_with_staff_code(p_store_id text, p_code text)
 returns table (
   id text,
@@ -376,5 +418,17 @@ end $$;
 do $$
 begin
   alter publication supabase_realtime add table public.sold_out_menus;
+exception when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.menu_items;
+exception when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.today_bookings;
 exception when duplicate_object then null;
 end $$;

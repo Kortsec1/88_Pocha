@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { developerCode } from "@/lib/menu";
+import { developerCode, initialMenuItems } from "@/lib/menu";
 import { createSeedItems, STORE_ID } from "@/lib/seed";
 import { getStatus } from "@/lib/status";
 import { getSupabase, hasSupabaseEnv } from "@/lib/supabase";
@@ -11,12 +11,14 @@ import type {
   DailyClosing,
   InventoryLog,
   Item,
+  MenuItem,
   Reservation,
   ReservationStatus,
   SoldOutMenu,
   StaffUser,
   TableMemo,
   TableOrderLine,
+  TodayBooking,
   User,
 } from "@/lib/types";
 
@@ -29,6 +31,8 @@ const STAFF_KEY = "hall-stock-staff";
 const RESERVATIONS_KEY = "hall-stock-reservations";
 const TABLE_MEMOS_KEY = "hall-stock-table-memos";
 const SOLD_OUT_KEY = "hall-stock-sold-out";
+const MENUS_KEY = "hall-stock-menus";
+const BOOKINGS_KEY = "hall-stock-bookings";
 
 const defaultUser: User = {
   id: "developer-park",
@@ -124,44 +128,20 @@ export function useAuthUser() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const supabase = getSupabase();
-    if (!supabase) {
-      setUser(readJson<User | null>(USER_KEY, null));
+    const storedUser = readJson<User | null>(USER_KEY, null);
+    if (storedUser) {
+      setUser(storedUser);
       setLoading(false);
       return;
     }
 
-    supabase.auth.getUser().then(({ data }) => {
-      const authUser = data.user;
-      setUser(
-        authUser
-          ? {
-              id: authUser.id,
-              name: authUser.user_metadata?.name || authUser.email?.split("@")[0] || "직원",
-              email: authUser.email || "",
-              role: "staff",
-              createdAt: authUser.created_at,
-            }
-          : null,
-      );
+    const supabase = getSupabase();
+    if (!supabase) {
       setLoading(false);
-    });
+      return;
+    }
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      const authUser = session?.user;
-      setUser(
-        authUser
-          ? {
-              id: authUser.id,
-              name: authUser.user_metadata?.name || authUser.email?.split("@")[0] || "직원",
-              email: authUser.email || "",
-              role: "staff",
-              createdAt: authUser.created_at,
-            }
-          : null,
-      );
-    });
-    return () => listener.subscription.unsubscribe();
+    setLoading(false);
   }, []);
 
   const signIn = useCallback(async (code: string) => {
@@ -512,11 +492,59 @@ function fromDbSoldOut(row: any): SoldOutMenu {
   };
 }
 
+function normalizeMenuItem(item: MenuItem): MenuItem {
+  return {
+    ...item,
+    storeId: item.storeId || STORE_ID,
+    active: item.active ?? true,
+    updatedAt: item.updatedAt || new Date().toISOString(),
+  };
+}
+
+function fromDbMenu(row: any): MenuItem {
+  return {
+    id: row.id,
+    storeId: row.store_id,
+    category: row.category,
+    name: row.name,
+    price: row.price,
+    active: row.active,
+    updatedAt: row.updated_at,
+  };
+}
+
+function fromDbBooking(row: any): TodayBooking {
+  return {
+    id: row.id,
+    storeId: row.store_id,
+    title: row.title,
+    partySize: row.party_size,
+    menu: row.menu,
+    time: row.time,
+    tables: row.tables || [],
+    status: row.status,
+    memo: row.memo || undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    createdByName: row.created_by_name,
+  };
+}
+
+function ensureDemoMenus() {
+  const current = readJson<MenuItem[]>(MENUS_KEY, []);
+  if (current.length) return current.map(normalizeMenuItem);
+  const next = initialMenuItems.map(normalizeMenuItem);
+  writeJson(MENUS_KEY, next);
+  return next;
+}
+
 export function useOperations(user?: User | null) {
   const [staff, setStaff] = useState<StaffUser[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [tableMemos, setTableMemos] = useState<TableMemo[]>([]);
   const [soldOutMenus, setSoldOutMenus] = useState<SoldOutMenu[]>([]);
+  const [menus, setMenus] = useState<MenuItem[]>([]);
+  const [bookings, setBookings] = useState<TodayBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const broadcast = useMemo(() => (typeof window !== "undefined" ? new BroadcastChannel("hall-stock-ops") : null), []);
 
@@ -526,17 +554,21 @@ export function useOperations(user?: User | null) {
     setReservations(readJson<Reservation[]>(RESERVATIONS_KEY, []));
     setTableMemos(readJson<TableMemo[]>(TABLE_MEMOS_KEY, []));
     setSoldOutMenus(readJson<SoldOutMenu[]>(SOLD_OUT_KEY, []));
+    setMenus(ensureDemoMenus());
+    setBookings(readJson<TodayBooking[]>(BOOKINGS_KEY, []));
     setLoading(false);
   }, []);
 
   const loadSupabase = useCallback(async () => {
     const supabase = getSupabase();
     if (!supabase) return;
-    const [{ data: staffRows }, { data: reservationRows }, { data: memoRows }, { data: soldOutRows }] = await Promise.all([
+    const [{ data: staffRows }, { data: reservationRows }, { data: memoRows }, { data: soldOutRows }, { data: menuRows }, { data: bookingRows }] = await Promise.all([
       supabase.from("app_users").select("*").eq("store_id", STORE_ID).order("created_at"),
       supabase.from("reservations").select("*").eq("store_id", STORE_ID).order("sort_order"),
       supabase.from("table_memos").select("*").eq("store_id", STORE_ID).eq("status", "open").order("updated_at", { ascending: false }),
       supabase.from("sold_out_menus").select("*").eq("store_id", STORE_ID).eq("active", true).order("created_at", { ascending: false }),
+      supabase.from("menu_items").select("*").eq("store_id", STORE_ID).eq("active", true).order("category").order("name"),
+      supabase.from("today_bookings").select("*").eq("store_id", STORE_ID).order("time"),
     ]);
     if (!staffRows?.length) {
       await supabase.from("app_users").upsert(defaultStaff.map((member) => ({
@@ -549,10 +581,22 @@ export function useOperations(user?: User | null) {
         created_at: member.createdAt,
       })));
     }
+    if (!menuRows?.length) {
+      await supabase.from("menu_items").upsert(initialMenuItems.map((item) => ({
+        id: item.id,
+        store_id: STORE_ID,
+        category: item.category,
+        name: item.name,
+        price: item.price,
+        active: true,
+      })));
+    }
     setStaff((staffRows || defaultStaff).map(fromDbStaff));
     setReservations((reservationRows || []).map(fromDbReservation));
     setTableMemos((memoRows || []).map(fromDbTableMemo));
     setSoldOutMenus((soldOutRows || []).map(fromDbSoldOut));
+    setMenus((menuRows?.length ? menuRows : initialMenuItems.map((item) => ({ ...item, store_id: STORE_ID, active: true }))).map(fromDbMenu));
+    setBookings((bookingRows || []).map(fromDbBooking));
     setLoading(false);
   }, []);
 
@@ -574,19 +618,23 @@ export function useOperations(user?: User | null) {
       .on("postgres_changes", { event: "*", schema: "public", table: "reservations", filter: `store_id=eq.${STORE_ID}` }, loadSupabase)
       .on("postgres_changes", { event: "*", schema: "public", table: "table_memos", filter: `store_id=eq.${STORE_ID}` }, loadSupabase)
       .on("postgres_changes", { event: "*", schema: "public", table: "sold_out_menus", filter: `store_id=eq.${STORE_ID}` }, loadSupabase)
+      .on("postgres_changes", { event: "*", schema: "public", table: "menu_items", filter: `store_id=eq.${STORE_ID}` }, loadSupabase)
+      .on("postgres_changes", { event: "*", schema: "public", table: "today_bookings", filter: `store_id=eq.${STORE_ID}` }, loadSupabase)
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
   }, [broadcast, loadDemo, loadSupabase]);
 
-  const persistDemo = useCallback((nextReservations = reservations, nextMemos = tableMemos, nextSoldOut = soldOutMenus, nextStaff = staff) => {
+  const persistDemo = useCallback((nextReservations = reservations, nextMemos = tableMemos, nextSoldOut = soldOutMenus, nextStaff = staff, nextMenus = menus, nextBookings = bookings) => {
     writeJson(RESERVATIONS_KEY, nextReservations);
     writeJson(TABLE_MEMOS_KEY, nextMemos);
     writeJson(SOLD_OUT_KEY, nextSoldOut);
     writeJson(STAFF_KEY, nextStaff);
+    writeJson(MENUS_KEY, nextMenus);
+    writeJson(BOOKINGS_KEY, nextBookings);
     broadcast?.postMessage("changed");
-  }, [broadcast, reservations, soldOutMenus, staff, tableMemos]);
+  }, [bookings, broadcast, menus, reservations, soldOutMenus, staff, tableMemos]);
 
   const addStaff = useCallback(async (name: string, code: string, role: StaffUser["role"] = "staff") => {
     const member: StaffUser = {
@@ -744,11 +792,105 @@ export function useOperations(user?: User | null) {
     persistDemo(reservations, tableMemos, next);
   }, [persistDemo, reservations, soldOutMenus, tableMemos]);
 
+  const saveMenu = useCallback(async (input: Omit<MenuItem, "id"> & { id?: string }) => {
+    const now = new Date().toISOString();
+    const menu: MenuItem = {
+      id: input.id || crypto.randomUUID(),
+      storeId: STORE_ID,
+      category: input.category,
+      name: input.name,
+      price: Math.max(0, Math.round(input.price)),
+      active: input.active ?? true,
+      updatedAt: now,
+    };
+    const supabase = getSupabase();
+    if (supabase) {
+      const { error } = await supabase.from("menu_items").upsert({
+        id: menu.id,
+        store_id: STORE_ID,
+        category: menu.category,
+        name: menu.name,
+        price: menu.price,
+        active: menu.active,
+        updated_at: now,
+      });
+      if (error) throw error;
+      return;
+    }
+    const nextMenus = [menu, ...menus.filter((item) => item.id !== menu.id)].sort((a, b) => a.name.localeCompare(b.name, "ko"));
+    setMenus(nextMenus);
+    persistDemo(reservations, tableMemos, soldOutMenus, staff, nextMenus, bookings);
+  }, [bookings, menus, persistDemo, reservations, soldOutMenus, staff, tableMemos]);
+
+  const removeMenu = useCallback(async (id: string) => {
+    const supabase = getSupabase();
+    if (supabase) {
+      const { error } = await supabase.from("menu_items").update({ active: false, updated_at: new Date().toISOString() }).eq("id", id);
+      if (error) throw error;
+      return;
+    }
+    const nextMenus = menus.filter((item) => item.id !== id);
+    setMenus(nextMenus);
+    persistDemo(reservations, tableMemos, soldOutMenus, staff, nextMenus, bookings);
+  }, [bookings, menus, persistDemo, reservations, soldOutMenus, staff, tableMemos]);
+
+  const addBooking = useCallback(async (input: Pick<TodayBooking, "title" | "partySize" | "menu" | "time" | "tables" | "memo">) => {
+    const now = new Date().toISOString();
+    const booking: TodayBooking = {
+      id: crypto.randomUUID(),
+      storeId: STORE_ID,
+      title: input.title,
+      partySize: input.partySize,
+      menu: input.menu,
+      time: input.time,
+      tables: input.tables,
+      memo: input.memo,
+      status: "scheduled",
+      createdAt: now,
+      updatedAt: now,
+      createdByName: user?.name || "직원",
+    };
+    const supabase = getSupabase();
+    if (supabase) {
+      const { error } = await supabase.from("today_bookings").insert({
+        id: booking.id,
+        store_id: STORE_ID,
+        title: booking.title,
+        party_size: booking.partySize,
+        menu: booking.menu,
+        time: booking.time,
+        tables: booking.tables,
+        status: booking.status,
+        memo: booking.memo || null,
+        created_by_name: booking.createdByName,
+      });
+      if (error) throw error;
+      return;
+    }
+    const nextBookings = [...bookings, booking].sort((a, b) => a.time.localeCompare(b.time));
+    setBookings(nextBookings);
+    persistDemo(reservations, tableMemos, soldOutMenus, staff, menus, nextBookings);
+  }, [bookings, menus, persistDemo, reservations, soldOutMenus, staff, tableMemos, user?.name]);
+
+  const updateBookingStatus = useCallback(async (id: string, status: TodayBooking["status"]) => {
+    const supabase = getSupabase();
+    if (supabase) {
+      const { error } = await supabase.from("today_bookings").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
+      if (error) throw error;
+      return;
+    }
+    const nextBookings = bookings.map((booking) => (booking.id === id ? { ...booking, status, updatedAt: new Date().toISOString() } : booking));
+    setBookings(nextBookings);
+    persistDemo(reservations, tableMemos, soldOutMenus, staff, menus, nextBookings);
+  }, [bookings, menus, persistDemo, reservations, soldOutMenus, staff, tableMemos]);
+
   return {
     staff,
     reservations,
     tableMemos,
     soldOutMenus: soldOutMenus.filter((menu) => menu.active),
+    menus: menus.filter((menu) => menu.active !== false),
+    bookings,
     loading,
     addStaff,
     addReservation,
@@ -756,5 +898,9 @@ export function useOperations(user?: User | null) {
     saveTableMemo,
     addSoldOutMenu,
     resolveSoldOutMenu,
+    saveMenu,
+    removeMenu,
+    addBooking,
+    updateBookingStatus,
   };
 }

@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 const links = [
   { href: "/dashboard", label: "홈", icon: Home },
   { href: "/items", label: "재고", icon: Package },
-  { href: "/reservations", label: "예약", icon: CalendarDays },
+  { href: "/reservations", label: "웨이팅", icon: CalendarDays },
   { href: "/tables", label: "테이블", icon: ClipboardList },
   { href: "/settings", label: "설정", icon: Settings },
 ];
