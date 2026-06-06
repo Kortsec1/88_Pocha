@@ -33,8 +33,8 @@ export default function LoginPage() {
     <main className="flex min-h-dvh items-center bg-background px-4 py-10 text-primary">
       <div className="mx-auto w-full max-w-md">
         <div className="mb-8">
-          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-lg bg-accent text-2xl font-black">홀</div>
-          <h1 className="text-4xl font-bold tracking-tight">홀스톡</h1>
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-accent text-xl font-black text-white shadow-soft">1988</div>
+          <h1 className="text-4xl font-black tracking-tight"><span className="text-success">88</span><span className="text-accent">포장마차</span></h1>
           <p className="mt-3 text-secondary">개인 코드로 빠르게 접속하고 홀 운영 상태를 공유합니다.</p>
         </div>
         <Card>

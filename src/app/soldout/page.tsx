@@ -14,6 +14,7 @@ export default function SoldOutPage() {
   const { soldOutMenus, addSoldOutMenu, resolveSoldOutMenu, menus } = useOperations(user);
   const [menuName, setMenuName] = useState("");
   const [reason, setReason] = useState("");
+  const filteredMenus = menus.filter((menu) => menu.name.includes(menuName) || !menuName);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -30,10 +31,20 @@ export default function SoldOutPage() {
       </header>
       <Card>
         <form className="space-y-3" onSubmit={onSubmit}>
-          <Input list="menu-list" placeholder="메뉴명" value={menuName} onChange={(event) => setMenuName(event.target.value)} required />
-          <datalist id="menu-list">
-            {menus.map((item) => <option key={item.id} value={item.name} />)}
-          </datalist>
+          <Input placeholder="메뉴 검색" value={menuName} onChange={(event) => setMenuName(event.target.value)} required />
+          <div className="max-h-56 space-y-2 overflow-y-auto rounded-lg border border-border bg-elevated p-2">
+            {filteredMenus.slice(0, 20).map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setMenuName(item.name)}
+                className="flex w-full items-center justify-between rounded-lg bg-surface px-3 py-2 text-left"
+              >
+                <span className="font-semibold">{item.name}</span>
+                <span className="text-xs text-secondary">{item.price.toLocaleString("ko-KR")}원</span>
+              </button>
+            ))}
+          </div>
           <Input placeholder="사유" value={reason} onChange={(event) => setReason(event.target.value)} />
           <Button className="w-full" size="lg"><Ban size={18} /> 판매 불가 추가</Button>
         </form>

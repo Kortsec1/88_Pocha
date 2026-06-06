@@ -1,7 +1,11 @@
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="512" height="512" rx="96" fill="#080B10"/>
-  <rect x="72" y="72" width="368" height="368" rx="72" fill="#111827" stroke="#263244" stroke-width="12"/>
-  <path d="M154 166h208v46H154v-46Zm0 86h208v46H154v-46Zm0 86h134v46H154v-46Z" fill="#F8FAFC"/>
-  <circle cx="356" cy="360" r="42" fill="#4F8CFF"/>
-  <path d="m338 360 13 13 29-32" stroke="#fff" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect width="512" height="512" rx="112" fill="#FFFFFF"/>
+  <circle cx="256" cy="188" r="116" fill="#C9151E"/>
+  <circle cx="256" cy="188" r="80" fill="#FFFFFF"/>
+  <circle cx="256" cy="188" r="105" stroke="#FFFFFF" stroke-width="8" stroke-dasharray="10 9"/>
+  <text x="256" y="208" text-anchor="middle" font-family="Arial, sans-serif" font-size="56" font-weight="900" fill="#C9151E">1988</text>
+  <text x="118" y="188" font-family="Arial, sans-serif" font-size="22" font-weight="800" fill="#FFFFFF">SOJU</text>
+  <text x="378" y="188" text-anchor="end" font-family="Arial, sans-serif" font-size="22" font-weight="800" fill="#FFFFFF">BEER</text>
+  <text x="256" y="352" text-anchor="middle" font-family="Arial, sans-serif" font-size="74" font-weight="900" fill="#15803D">88</text>
+  <text x="256" y="414" text-anchor="middle" font-family="Arial, sans-serif" font-size="56" font-weight="900" fill="#C9151E">포장마차</text>
 </svg>

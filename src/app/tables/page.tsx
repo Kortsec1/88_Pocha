@@ -13,6 +13,7 @@ import { useAuthUser, useOperations } from "@/lib/useInventory";
 import { cn, formatTime } from "@/lib/utils";
 
 const menuCategories: MenuCategory[] = ["main", "fried", "meal", "alcohol", "drink"];
+const freeRequests = ["맥주잔", "담요", "얼음컵", "수저", "물", "앞접시", "물티슈", "냅킨", "집게", "가위"];
 
 function formatPrice(value: number) {
   return new Intl.NumberFormat("ko-KR").format(value);
@@ -41,6 +42,17 @@ export default function TablesPage() {
         return current.map((order) => (order.menuId === menu.id ? { ...order, quantity: order.quantity + 1 } : order));
       }
       return [{ menuId: menu.id, name: menu.name, price: menu.price, quantity: 1 }, ...current];
+    });
+  }
+
+  function addFreeRequest(name: string) {
+    const id = `request-${name}`;
+    setOrders((current) => {
+      const existing = current.find((order) => order.menuId === id);
+      if (existing) {
+        return current.map((order) => (order.menuId === id ? { ...order, quantity: order.quantity + 1 } : order));
+      }
+      return [{ menuId: id, name, price: 0, quantity: 1 }, ...current];
     });
   }
 
@@ -127,6 +139,22 @@ export default function TablesPage() {
                 <div className="mt-1 text-xs text-secondary">{formatPrice(menu.price)}원</div>
               </button>
             ))}
+          </div>
+
+          <div>
+            <div className="mb-2 text-sm font-semibold text-secondary">기타 요청</div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {freeRequests.map((request) => (
+                <button
+                  key={request}
+                  type="button"
+                  onClick={() => addFreeRequest(request)}
+                  className="h-10 shrink-0 rounded-full border border-border bg-surface px-4 text-sm font-semibold text-secondary"
+                >
+                  {request}
+                </button>
+              ))}
+            </div>
           </div>
 
           {orders.length ? (
