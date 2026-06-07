@@ -27,7 +27,7 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
 
   return (
     <main className="min-h-dvh bg-background text-primary">
-      <div className="mx-auto max-w-md px-4 pb-28 pt-[max(env(safe-area-inset-top),1rem)]">{children}</div>
+      <div className="mx-auto max-w-md px-4 pb-[calc(env(safe-area-inset-bottom)+7.5rem)] pt-[calc(env(safe-area-inset-top)+1.25rem)]">{children}</div>
       <OperationNotifications />
       <BottomNavigation />
     </main>

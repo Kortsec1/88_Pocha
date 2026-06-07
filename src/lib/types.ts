@@ -5,6 +5,7 @@ export type ReservationZone = "middle" | "yard";
 export type ReservationStatus = "reserved" | "arrived" | "no_show" | "canceled";
 export type BookingStatus = "scheduled" | "seated" | "completed" | "canceled";
 export type PaymentMethod = "cash" | "transfer";
+export type BusinessSessionStatus = "open" | "closed";
 export type TableArea = "indoor" | "middle" | "yard" | "custom";
 export type TableMemoStatus = "open" | "closed";
 
@@ -173,4 +174,22 @@ export type DailySettlement = {
   createdAt: string;
   updatedAt: string;
   updatedByName: string;
+};
+
+export type BusinessSession = {
+  id: string;
+  storeId: string;
+  status: BusinessSessionStatus;
+  openedAt: string;
+  openedByName: string;
+  closedAt?: string;
+  closedByName?: string;
+  closeSummary?: {
+    inventoryChecked: number;
+    inventoryTotal: number;
+    cashTotal: number;
+    transferTotal: number;
+    fruitCount: number;
+    memo?: string;
+  };
 };

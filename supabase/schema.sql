@@ -153,6 +153,17 @@ create table if not exists public.push_subscriptions (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.business_sessions (
+  id uuid primary key default gen_random_uuid(),
+  store_id text not null references public.stores(id) on delete cascade,
+  status text not null check (status in ('open', 'closed')),
+  opened_at timestamptz not null default now(),
+  opened_by_name text not null default '직원',
+  closed_at timestamptz,
+  closed_by_name text,
+  close_summary jsonb
+);
+
 alter table public.stores enable row level security;
 alter table public.profiles enable row level security;
 alter table public.items enable row level security;
@@ -166,6 +177,7 @@ alter table public.menu_items enable row level security;
 alter table public.today_bookings enable row level security;
 alter table public.daily_settlements enable row level security;
 alter table public.push_subscriptions enable row level security;
+alter table public.business_sessions enable row level security;
 
 drop policy if exists "authenticated can read stores" on public.stores;
 create policy "authenticated can read stores"
@@ -333,6 +345,13 @@ to anon
 using (true)
 with check (true);
 
+drop policy if exists "anon can manage business sessions" on public.business_sessions;
+create policy "anon can manage business sessions"
+on public.business_sessions for all
+to anon
+using (true)
+with check (true);
+
 create or replace function public.login_with_staff_code(p_store_id text, p_code text)
 returns table (
   id text,
@@ -475,5 +494,11 @@ end $$;
 do $$
 begin
   alter publication supabase_realtime add table public.daily_settlements;
+exception when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.business_sessions;
 exception when duplicate_object then null;
 end $$;

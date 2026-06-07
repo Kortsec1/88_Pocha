@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { DoorOpen, Moon, SunMedium } from "lucide-react";
 import { ItemCard } from "@/components/inventory/ItemCard";
 import { MobileShell } from "@/components/layout/MobileShell";
 import { Button } from "@/components/ui/Button";
@@ -14,7 +15,7 @@ function DashboardContent() {
   const params = useSearchParams();
   const { user } = useAuthUser();
   const { items, loading } = useInventory(user);
-  const { reservations, tableMemos, soldOutMenus, bookings, settlement } = useOperations(user);
+  const { reservations, tableMemos, soldOutMenus, bookings, settlement, businessSession, openBusiness } = useOperations(user);
   const needs = items.filter((item) => item.status === "low" || item.status === "empty");
   const waitingReservations = reservations.filter((reservation) => reservation.status === "reserved");
   const activeBookings = bookings.filter((booking) => booking.status === "scheduled" || booking.status === "seated");
@@ -22,12 +23,18 @@ function DashboardContent() {
   const cashTotal = settlement.cashEntries.reduce((sum, entry) => sum + entry.amount, 0);
   const transferTotal = settlement.transferEntries.reduce((sum, entry) => sum + entry.amount, 0);
   const settlementTotal = cashTotal + transferTotal;
+  const isOpen = businessSession?.status === "open";
   const dashboardCards = [
     { href: "/items", label: "재고 점검", value: needs.length, caption: `정상 ${normalCount} / 전체 ${items.length}`, tone: "text-accent bg-accent/[0.06] border-accent/15" },
     { href: "/reservations", label: "웨이팅", value: waitingReservations.length, caption: "현재 접수", tone: "text-warning bg-warning/[0.08] border-warning/20" },
     { href: "/bookings", label: "금일 예약", value: activeBookings.length, caption: "예정 및 착석", tone: "text-success bg-success/[0.06] border-success/15" },
     { href: "/tables", label: "테이블 메모", value: tableMemos.length, caption: "진행 중", tone: "text-primary bg-elevated border-border" },
   ];
+
+  async function handleOpen() {
+    if (!confirm("영업 오픈 처리를 진행할까요? 오픈 후에는 현재 운영 상태가 영업 중으로 표시됩니다.")) return;
+    await openBusiness();
+  }
 
   return (
     <MobileShell>
@@ -43,6 +50,28 @@ function DashboardContent() {
       {params.get("updated") === "inventory" ? (
         <div className="mb-4 rounded-lg border border-success/40 bg-success/10 p-3 text-sm font-semibold text-success">재고 수정이 저장됐습니다.</div>
       ) : null}
+
+      <section className="mb-3 rounded-lg border border-accent/20 bg-accent p-5 text-white shadow-soft">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-black text-white/75">
+              {isOpen ? <SunMedium size={18} /> : <Moon size={18} />}
+              {isOpen ? "영업 중" : "마감 상태"}
+            </div>
+            <div className="mt-3 text-3xl font-black">{isOpen ? "오픈 완료" : "오픈 대기"}</div>
+            <p className="mt-2 text-sm font-medium text-white/75">
+              {isOpen ? `${businessSession?.openedByName} · ${new Date(businessSession.openedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}` : "오픈 버튼으로 운영을 시작하세요."}
+            </p>
+          </div>
+          {isOpen ? (
+            <Link href="/closing" className="rounded-lg bg-white px-4 py-3 text-sm font-black text-accent">마감</Link>
+          ) : (
+            <button type="button" onClick={handleOpen} className="rounded-lg bg-white px-4 py-3 text-sm font-black text-accent">
+              <DoorOpen size={18} className="mb-1 inline" /> 오픈
+            </button>
+          )}
+        </div>
+      </section>
 
       <section className="rounded-lg border border-border bg-surface p-5 shadow-soft">
         <div className="mb-5 flex items-start justify-between gap-4">

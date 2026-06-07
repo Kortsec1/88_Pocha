@@ -157,6 +157,9 @@ export function OperationNotifications() {
       .on("postgres_changes", { event: "*", schema: "public", table: "sold_out_menus", filter: `store_id=eq.${STORE_ID}` }, (payload) => {
         showNotice({ id: `${payload.commit_timestamp}-sold_out_menus`, area: "품절", message: "품절 메뉴가 업데이트됐습니다.", createdAt: payload.commit_timestamp });
       })
+      .on("postgres_changes", { event: "*", schema: "public", table: "business_sessions", filter: `store_id=eq.${STORE_ID}` }, (payload) => {
+        showNotice({ id: `${payload.commit_timestamp}-business_sessions`, area: "운영", message: "오픈/마감 상태가 업데이트됐습니다.", createdAt: payload.commit_timestamp });
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -178,14 +181,14 @@ export function OperationNotifications() {
         <button
           type="button"
           onClick={requestPermission}
-          className="fixed right-4 top-[max(env(safe-area-inset-top),1rem)] z-[60] rounded-full border border-accent/20 bg-surface px-4 py-2 text-sm font-bold text-accent shadow-soft"
+          className="fixed right-4 top-[calc(env(safe-area-inset-top)+0.75rem)] z-[60] rounded-full border border-accent/20 bg-surface px-4 py-2 text-sm font-bold text-accent shadow-soft"
         >
           앱 알림 켜기
         </button>
       ) : null}
       {pushReady ? <span className="sr-only">휴대폰 푸시 알림이 활성화됐습니다.</span> : null}
       {notice ? (
-        <div className="fixed left-4 right-4 top-[max(env(safe-area-inset-top),1rem)] z-[70] mx-auto max-w-md rounded-xl border border-border bg-surface p-4 shadow-soft">
+        <div className="fixed left-4 right-4 top-[calc(env(safe-area-inset-top)+0.75rem)] z-[70] mx-auto max-w-md rounded-xl border border-border bg-surface p-4 shadow-soft">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs font-black text-accent">{notice.area}</p>

@@ -12,16 +12,16 @@
 
 :root {
   color-scheme: light;
-  --background: #f8f7f4;
+  --background: #f7f4ef;
   --surface: #ffffff;
-  --surface-elevated: #f3f1ed;
-  --border: #e8e2da;
-  --text-primary: #191f28;
-  --text-secondary: #6b7684;
-  --accent: #c9151e;
-  --success: #15803d;
-  --warning: #f59e0b;
-  --danger: #c9151e;
+  --surface-elevated: #f1ebe3;
+  --border: #e3d7c9;
+  --text-primary: #201815;
+  --text-secondary: #75685f;
+  --accent: #b20f1b;
+  --success: #166534;
+  --warning: #b7791f;
+  --danger: #b20f1b;
 }
 
 * {
