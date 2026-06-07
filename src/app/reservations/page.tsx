@@ -91,11 +91,12 @@ export default function ReservationsPage() {
                 </div>
                 <span className="rounded-full border border-border px-3 py-1 text-xs text-secondary">{statusLabels[reservation.status]}</span>
               </div>
-              <div className="mt-4 grid grid-cols-3 gap-2">
-                <Button variant="secondary" onClick={() => updateReservationStatus(reservation.id, "arrived")}>입장 완료</Button>
-                <Button variant="secondary" onClick={() => updateReservationStatus(reservation.id, "no_show")}>미방문</Button>
-                <Button variant="ghost" onClick={() => updateReservationStatus(reservation.id, "canceled")}>취소</Button>
-              </div>
+              {reservation.status === "reserved" ? (
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <Button variant="secondary" onClick={() => updateReservationStatus(reservation.id, "arrived")}>입장 완료</Button>
+                  <Button variant="ghost" onClick={() => updateReservationStatus(reservation.id, "canceled")}>취소</Button>
+                </div>
+              ) : null}
             </Card>
           ))
         ) : (

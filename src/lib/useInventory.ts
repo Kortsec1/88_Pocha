@@ -339,7 +339,6 @@ export function useInventory(user?: User | null) {
           p_updated_by_name: currentUser.name,
         });
         if (error) throw error;
-        emitOperationEvent(`${current.name} 재고가 업데이트됐습니다.`, "재고");
         return;
       }
 
@@ -348,7 +347,6 @@ export function useInventory(user?: User | null) {
       setItems(nextItems);
       setLogs(nextLogs);
       persistDemo(nextItems, nextLogs);
-      emitOperationEvent(`${current.name} 재고가 업데이트됐습니다.`, "재고");
     },
     [items, logs, persistDemo, user],
   );
@@ -382,14 +380,12 @@ export function useInventory(user?: User | null) {
           })
           .eq("id", itemId);
         if (error) throw error;
-        emitOperationEvent(`${current.name} 재고 단위가 변경됐습니다.`, "재고");
         return;
       }
 
     const nextItems = items.map((item) => (item.id === itemId ? nextItem : item));
     setItems(nextItems);
     persistDemo(nextItems);
-    emitOperationEvent(`${current.name} 재고 단위가 변경됐습니다.`, "재고");
   },
     [items, persistDemo, user],
   );
@@ -846,17 +842,37 @@ export function useOperations(user?: User | null) {
   }, [persistDemo, reservations, user?.name]);
 
   const updateReservationStatus = useCallback(async (id: string, status: ReservationStatus) => {
+    const reservation = reservations.find((item) => item.id === id);
+    if (!reservation) return;
+    const now = new Date().toISOString();
+    const nextSortOrder = status !== "reserved" ? Math.max(...reservations.map((item) => item.sortOrder), reservation.sortOrder) + 1 : reservation.sortOrder;
+
     const supabase = getSupabase();
+    const next = reservations
+      .map((item) =>
+        item.id === id
+          ? { ...item, status, sortOrder: nextSortOrder, updatedAt: now }
+          : item,
+      )
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+
     if (supabase) {
-      const { error } = await supabase.from("reservations").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
+      const updateData: Record<string, unknown> = {
+        status,
+        updated_at: now,
+      };
+      if (status !== "reserved") {
+        updateData.sort_order = nextSortOrder;
+      }
+      const { error } = await supabase.from("reservations").update(updateData).eq("id", id);
       if (error) throw error;
-      emitOperationEvent("웨이팅 상태가 업데이트됐습니다.", "웨이팅");
+      setReservations(next);
+      persistDemo(next);
       return;
     }
-    const next = reservations.map((reservation) => (reservation.id === id ? { ...reservation, status, updatedAt: new Date().toISOString() } : reservation));
+
     setReservations(next);
     persistDemo(next);
-    emitOperationEvent("웨이팅 상태가 업데이트됐습니다.", "웨이팅");
   }, [persistDemo, reservations]);
 
   const saveTableMemo = useCallback(async (memo: Partial<TableMemo> & { area: TableMemo["area"]; tableNo: string; orders: TableOrderLine[] }) => {
@@ -887,13 +903,11 @@ export function useOperations(user?: User | null) {
         updated_by_name: nextMemo.updatedByName,
       });
       if (error) throw error;
-      emitOperationEvent(`${nextMemo.tableNo}번 테이블 메모가 저장됐습니다.`, "테이블");
       return;
     }
     const next = [nextMemo, ...tableMemos.filter((row) => row.id !== nextMemo.id)];
     setTableMemos(next);
     persistDemo(reservations, next);
-    emitOperationEvent(`${nextMemo.tableNo}번 테이블 메모가 저장됐습니다.`, "테이블");
   }, [persistDemo, reservations, tableMemos, user?.name]);
 
   const addSoldOutMenu = useCallback(async (menuName: string, reason?: string) => {
@@ -933,13 +947,11 @@ export function useOperations(user?: User | null) {
     if (supabase) {
       const { error } = await supabase.from("sold_out_menus").update({ active: false, updated_at: new Date().toISOString() }).eq("id", id);
       if (error) throw error;
-      emitOperationEvent("품절 메뉴가 해제됐습니다.", "품절");
       return;
     }
     const next = soldOutMenus.map((menu) => (menu.id === id ? { ...menu, active: false, updatedAt: new Date().toISOString() } : menu));
     setSoldOutMenus(next);
     persistDemo(reservations, tableMemos, next);
-    emitOperationEvent("품절 메뉴가 해제됐습니다.", "품절");
   }, [persistDemo, reservations, soldOutMenus, tableMemos]);
 
   const saveMenu = useCallback(async (input: Omit<MenuItem, "id"> & { id?: string }) => {
@@ -1015,13 +1027,11 @@ export function useOperations(user?: User | null) {
         created_by_name: booking.createdByName,
       });
       if (error) throw error;
-      emitOperationEvent(`${booking.title} 금일 예약이 등록됐습니다.`, "예약");
       return;
     }
     const nextBookings = [...bookings, booking].sort((a, b) => a.time.localeCompare(b.time));
     setBookings(nextBookings);
     persistDemo(reservations, tableMemos, soldOutMenus, staff, menus, nextBookings);
-    emitOperationEvent(`${booking.title} 금일 예약이 등록됐습니다.`, "예약");
   }, [bookings, menus, persistDemo, reservations, soldOutMenus, staff, tableMemos, user?.name]);
 
   const updateBookingStatus = useCallback(async (id: string, status: TodayBooking["status"]) => {
@@ -1029,13 +1039,11 @@ export function useOperations(user?: User | null) {
     if (supabase) {
       const { error } = await supabase.from("today_bookings").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
       if (error) throw error;
-      emitOperationEvent("금일 예약 상태가 업데이트됐습니다.", "예약");
       return;
     }
     const nextBookings = bookings.map((booking) => (booking.id === id ? { ...booking, status, updatedAt: new Date().toISOString() } : booking));
     setBookings(nextBookings);
     persistDemo(reservations, tableMemos, soldOutMenus, staff, menus, nextBookings);
-    emitOperationEvent("금일 예약 상태가 업데이트됐습니다.", "예약");
   }, [bookings, menus, persistDemo, reservations, soldOutMenus, staff, tableMemos]);
 
   const saveSettlement = useCallback(async (nextSettlement: DailySettlement) => {
@@ -1058,12 +1066,10 @@ export function useOperations(user?: User | null) {
         updated_at: normalized.updatedAt,
       });
       if (error) throw error;
-      emitOperationEvent("일일 정산이 업데이트됐습니다.", "정산");
       return;
     }
     setSettlement(normalized);
     persistDemo(reservations, tableMemos, soldOutMenus, staff, menus, bookings, normalized);
-    emitOperationEvent("일일 정산이 업데이트됐습니다.", "정산");
   }, [bookings, menus, persistDemo, reservations, soldOutMenus, staff, tableMemos, user?.name]);
 
   const updateFruitCount = useCallback(async (fruitCount: number) => {
