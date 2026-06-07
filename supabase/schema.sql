@@ -143,6 +143,16 @@ create table if not exists public.daily_settlements (
   unique (store_id, date)
 );
 
+create table if not exists public.push_subscriptions (
+  endpoint text primary key,
+  store_id text not null references public.stores(id) on delete cascade,
+  user_id text,
+  subscription jsonb not null,
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 alter table public.stores enable row level security;
 alter table public.profiles enable row level security;
 alter table public.items enable row level security;
@@ -155,6 +165,7 @@ alter table public.sold_out_menus enable row level security;
 alter table public.menu_items enable row level security;
 alter table public.today_bookings enable row level security;
 alter table public.daily_settlements enable row level security;
+alter table public.push_subscriptions enable row level security;
 
 drop policy if exists "authenticated can read stores" on public.stores;
 create policy "authenticated can read stores"
@@ -311,6 +322,13 @@ with check (true);
 drop policy if exists "anon can manage daily settlements" on public.daily_settlements;
 create policy "anon can manage daily settlements"
 on public.daily_settlements for all
+to anon
+using (true)
+with check (true);
+
+drop policy if exists "anon can manage push subscriptions" on public.push_subscriptions;
+create policy "anon can manage push subscriptions"
+on public.push_subscriptions for all
 to anon
 using (true)
 with check (true);

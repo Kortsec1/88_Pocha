@@ -23,10 +23,10 @@ function DashboardContent() {
   const transferTotal = settlement.transferEntries.reduce((sum, entry) => sum + entry.amount, 0);
   const settlementTotal = cashTotal + transferTotal;
   const dashboardCards = [
-    { href: "/items", label: "재고 점검", value: needs.length, caption: `정상 ${normalCount} / 전체 ${items.length}` },
-    { href: "/reservations", label: "웨이팅", value: waitingReservations.length, caption: "현재 접수" },
-    { href: "/bookings", label: "금일 예약", value: activeBookings.length, caption: "예정 및 착석" },
-    { href: "/tables", label: "테이블 메모", value: tableMemos.length, caption: "진행 중" },
+    { href: "/items", label: "재고 점검", value: needs.length, caption: `정상 ${normalCount} / 전체 ${items.length}`, tone: "text-accent bg-accent/[0.06] border-accent/15" },
+    { href: "/reservations", label: "웨이팅", value: waitingReservations.length, caption: "현재 접수", tone: "text-warning bg-warning/[0.08] border-warning/20" },
+    { href: "/bookings", label: "금일 예약", value: activeBookings.length, caption: "예정 및 착석", tone: "text-success bg-success/[0.06] border-success/15" },
+    { href: "/tables", label: "테이블 메모", value: tableMemos.length, caption: "진행 중", tone: "text-primary bg-elevated border-border" },
   ];
 
   return (
@@ -34,7 +34,7 @@ function DashboardContent() {
       <header className="mb-5 flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-secondary">{formatDate()}</p>
-          <h1 className="mt-1 text-3xl font-black text-primary">88포차 운영판</h1>
+          <h1 className="mt-1 whitespace-nowrap text-3xl font-black text-primary">88포차 운영판</h1>
         </div>
         <div className="rounded-full border border-accent/20 bg-surface px-3 py-1 text-sm font-black text-accent shadow-soft">1988</div>
       </header>
@@ -49,7 +49,7 @@ function DashboardContent() {
           <div>
             <div className="text-sm font-bold text-accent">TODAY</div>
             <div className="mt-1 text-2xl font-black">운영 요약</div>
-            <p className="mt-1 text-sm text-secondary">웨이팅, 예약, 재고, 정산을 한 화면에서 확인합니다.</p>
+            <p className="mt-1 text-sm text-secondary">웨이팅 · 예약 · 재고 · 정산</p>
           </div>
           <div className="text-right">
             <div className="text-xs font-bold text-secondary">정산 합계</div>
@@ -58,10 +58,10 @@ function DashboardContent() {
         </div>
         <div className="grid grid-cols-2 gap-3">
           {dashboardCards.map((card) => (
-            <Link key={card.href} href={card.href} className="rounded-lg border border-border bg-background/70 p-4 transition active:scale-[0.98]">
-              <div className="text-sm font-bold text-secondary">{card.label}</div>
+            <Link key={card.href} href={card.href} className={`rounded-lg border p-4 transition active:scale-[0.98] ${card.tone}`}>
+              <div className="truncate text-sm font-bold">{card.label}</div>
               <div className="mt-3 text-3xl font-black tabular-nums text-primary">{card.value}</div>
-              <div className="mt-1 text-xs font-medium text-secondary">{card.caption}</div>
+              <div className="mt-1 truncate text-xs font-medium text-secondary">{card.caption}</div>
             </Link>
           ))}
           <Link href="/settlement" className="col-span-2 rounded-lg border border-accent/15 bg-accent/[0.04] p-4 transition active:scale-[0.98]">
@@ -69,7 +69,7 @@ function DashboardContent() {
               <div>
                 <div className="text-sm font-bold text-accent">일일 정산</div>
                 <div className="mt-2 text-3xl font-black tabular-nums">{settlementTotal.toLocaleString("ko-KR")}원</div>
-                <div className="mt-1 text-sm text-secondary">현금 {cashTotal.toLocaleString("ko-KR")} · 계좌 {transferTotal.toLocaleString("ko-KR")}</div>
+                <div className="mt-1 truncate text-sm text-secondary">현금 {cashTotal.toLocaleString("ko-KR")} · 계좌 {transferTotal.toLocaleString("ko-KR")}</div>
               </div>
               <div className="rounded-full border border-border bg-surface px-3 py-1 text-sm font-bold text-primary">과일 {settlement.fruitCount}</div>
             </div>
@@ -83,7 +83,7 @@ function DashboardContent() {
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/[0.06] text-sm font-black text-accent">품절</span>
             <div>
               <div className="font-semibold">품절 메뉴</div>
-              <div className="text-sm text-secondary">{soldOutMenus.length ? soldOutMenus.map((menu) => menu.menuName).join(", ") : "등록된 품절 메뉴 없음"}</div>
+              <div className="line-clamp-1 text-sm text-secondary">{soldOutMenus.length ? soldOutMenus.map((menu) => menu.menuName).join(", ") : "등록된 품절 메뉴 없음"}</div>
             </div>
           </div>
           <span className="text-2xl font-black tabular-nums">{soldOutMenus.length}</span>
@@ -114,9 +114,7 @@ function DashboardContent() {
 
       <section className="mt-6">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-lg font-semibold">
-            재고 알림
-          </h2>
+          <h2 className="text-lg font-semibold">재고 알림</h2>
           <span className="text-sm text-secondary">{needs.length}개</span>
         </div>
         <div className="space-y-3">

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSupabase } from "@/lib/supabase";
 import { STORE_ID } from "@/lib/seed";
+import { useAuthUser } from "@/lib/useInventory";
 
 type Notice = {
   id: string;
@@ -21,12 +22,28 @@ function notifySystem(title: string, body: string) {
   });
 }
 
+function urlBase64ToUint8Array(value: string) {
+  const padding = "=".repeat((4 - (value.length % 4)) % 4);
+  const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
+}
+
 export function OperationNotifications() {
+  const { user } = useAuthUser();
   const [notice, setNotice] = useState<Notice | null>(null);
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">("unsupported");
+  const [pushReady, setPushReady] = useState(false);
   const lastNoticeId = useRef<string | null>(null);
 
-  const canAskPermission = useMemo(() => typeof window !== "undefined" && "Notification" in window && Notification.permission === "default", []);
+  const canAskPermission = useMemo(() => (
+    typeof window !== "undefined" &&
+    "Notification" in window &&
+    "serviceWorker" in navigator &&
+    "PushManager" in window &&
+    Boolean(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) &&
+    Notification.permission !== "granted"
+  ), []);
 
   const showNotice = useCallback((next: Notice) => {
     if (lastNoticeId.current === next.id) return;
@@ -40,6 +57,23 @@ export function OperationNotifications() {
       setPermission(Notification.permission);
     }
   }, []);
+
+  useEffect(() => {
+    if (permission !== "granted" || !user || !process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) return;
+    navigator.serviceWorker.ready.then(async (registration) => {
+      const existing = await registration.pushManager.getSubscription();
+      const subscription = existing || await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ""),
+      });
+      await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storeId: STORE_ID, userId: user.id, subscription }),
+      });
+      setPushReady(true);
+    }).catch(() => setPushReady(false));
+  }, [permission, user]);
 
   useEffect(() => {
     const channel = new BroadcastChannel("hall-stock-events");
@@ -92,11 +126,12 @@ export function OperationNotifications() {
         <button
           type="button"
           onClick={requestPermission}
-          className="fixed right-4 top-[max(env(safe-area-inset-top),1rem)] z-[60] rounded-full border border-border bg-surface px-4 py-2 text-sm font-bold text-primary shadow-soft"
+          className="fixed right-4 top-[max(env(safe-area-inset-top),1rem)] z-[60] rounded-full border border-accent/20 bg-surface px-4 py-2 text-sm font-bold text-accent shadow-soft"
         >
-          알림 켜기
+          앱 알림 켜기
         </button>
       ) : null}
+      {pushReady ? <span className="sr-only">휴대폰 푸시 알림이 활성화됐습니다.</span> : null}
       {notice ? (
         <div className="fixed left-4 right-4 top-[max(env(safe-area-inset-top),1rem)] z-[70] mx-auto max-w-md rounded-xl border border-border bg-surface p-4 shadow-soft">
           <div className="flex items-start justify-between gap-3">

@@ -26,3 +26,27 @@ self.addEventListener("fetch", (event) => {
       .catch(() => caches.match(request).then((cached) => cached || caches.match("/dashboard"))),
   );
 });
+
+self.addEventListener("push", (event) => {
+  const data = event.data?.json() || {};
+  event.waitUntil(
+    self.registration.showNotification(data.title || "88포차 업데이트", {
+      body: data.body || "운영 정보가 업데이트됐습니다.",
+      icon: "/icon.svg",
+      badge: "/icon.svg",
+      data: { url: data.url || "/dashboard" },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || "/dashboard";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      const matchedClient = clients.find((client) => client.url.includes(url));
+      if (matchedClient) return matchedClient.focus();
+      return self.clients.openWindow(url);
+    }),
+  );
+});

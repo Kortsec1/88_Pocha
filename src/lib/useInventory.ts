@@ -75,13 +75,25 @@ function writeJson<T>(key: string, value: T) {
 function emitOperationEvent(message: string, area: "재고" | "웨이팅" | "예약" | "테이블" | "정산" | "품절") {
   if (typeof window === "undefined") return;
   const channel = new BroadcastChannel("hall-stock-events");
-  channel.postMessage({
+  const payload = {
     id: crypto.randomUUID(),
     message,
     area,
+    storeId: STORE_ID,
     createdAt: new Date().toISOString(),
+  };
+  channel.postMessage({
+    id: payload.id,
+    message: payload.message,
+    area: payload.area,
+    createdAt: payload.createdAt,
   });
   channel.close();
+  fetch("/api/push/notify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  }).catch(() => undefined);
 }
 
 function ensureDemoStaff() {
@@ -325,6 +337,7 @@ export function useInventory(user?: User | null) {
           p_updated_by_name: currentUser.name,
         });
         if (error) throw error;
+        emitOperationEvent(`${current.name} 재고가 업데이트됐습니다.`, "재고");
         return;
       }
 
@@ -367,6 +380,7 @@ export function useInventory(user?: User | null) {
           })
           .eq("id", itemId);
         if (error) throw error;
+        emitOperationEvent(`${current.name} 재고 단위가 변경됐습니다.`, "재고");
         return;
       }
 
@@ -781,6 +795,7 @@ export function useOperations(user?: User | null) {
         created_by_name: reservation.createdByName,
       });
       if (error) throw error;
+      emitOperationEvent(`${reservation.name}님 웨이팅이 등록됐습니다.`, "웨이팅");
       return;
     }
     const next = [...reservations, reservation].sort((a, b) => a.sortOrder - b.sortOrder);
@@ -794,6 +809,7 @@ export function useOperations(user?: User | null) {
     if (supabase) {
       const { error } = await supabase.from("reservations").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
       if (error) throw error;
+      emitOperationEvent("웨이팅 상태가 업데이트됐습니다.", "웨이팅");
       return;
     }
     const next = reservations.map((reservation) => (reservation.id === id ? { ...reservation, status, updatedAt: new Date().toISOString() } : reservation));
@@ -830,6 +846,7 @@ export function useOperations(user?: User | null) {
         updated_by_name: nextMemo.updatedByName,
       });
       if (error) throw error;
+      emitOperationEvent(`${nextMemo.tableNo}번 테이블 메모가 저장됐습니다.`, "테이블");
       return;
     }
     const next = [nextMemo, ...tableMemos.filter((row) => row.id !== nextMemo.id)];
@@ -861,6 +878,7 @@ export function useOperations(user?: User | null) {
         created_by_name: soldOut.createdByName,
       });
       if (error) throw error;
+      emitOperationEvent(`${soldOut.menuName} 품절이 등록됐습니다.`, "품절");
       return;
     }
     const next = [soldOut, ...soldOutMenus];
@@ -874,6 +892,7 @@ export function useOperations(user?: User | null) {
     if (supabase) {
       const { error } = await supabase.from("sold_out_menus").update({ active: false, updated_at: new Date().toISOString() }).eq("id", id);
       if (error) throw error;
+      emitOperationEvent("품절 메뉴가 해제됐습니다.", "품절");
       return;
     }
     const next = soldOutMenus.map((menu) => (menu.id === id ? { ...menu, active: false, updatedAt: new Date().toISOString() } : menu));
@@ -955,6 +974,7 @@ export function useOperations(user?: User | null) {
         created_by_name: booking.createdByName,
       });
       if (error) throw error;
+      emitOperationEvent(`${booking.title} 금일 예약이 등록됐습니다.`, "예약");
       return;
     }
     const nextBookings = [...bookings, booking].sort((a, b) => a.time.localeCompare(b.time));
@@ -968,6 +988,7 @@ export function useOperations(user?: User | null) {
     if (supabase) {
       const { error } = await supabase.from("today_bookings").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
       if (error) throw error;
+      emitOperationEvent("금일 예약 상태가 업데이트됐습니다.", "예약");
       return;
     }
     const nextBookings = bookings.map((booking) => (booking.id === id ? { ...booking, status, updatedAt: new Date().toISOString() } : booking));
@@ -996,6 +1017,7 @@ export function useOperations(user?: User | null) {
         updated_at: normalized.updatedAt,
       });
       if (error) throw error;
+      emitOperationEvent("일일 정산이 업데이트됐습니다.", "정산");
       return;
     }
     setSettlement(normalized);
