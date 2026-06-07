@@ -73,11 +73,16 @@ async function registerPushSubscription(userId?: string, forceNew = false) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ storeId: STORE_ID, userId, subscription }),
     });
-    if (!response.ok) throw new Error("구독 저장 실패");
+    if (!response.ok) {
+      const text = await response.text();
+      console.warn("Push subscription save failed", response.status, text);
+      throw new Error("구독 저장 실패");
+    }
     const status = { supported: true, permission: Notification.permission, ready: true, message: "휴대폰 푸시 알림이 연결됐습니다." };
     emitPushStatus(status);
     return status;
-  } catch {
+  } catch (error) {
+    console.warn("Push subscription failed", error);
     const status = { supported: true, permission: Notification.permission, ready: false, message: "푸시 구독 저장에 실패했습니다. 앱을 홈 화면에서 실행한 뒤 다시 시도해 주세요." };
     emitPushStatus(status);
     return status;
@@ -93,8 +98,12 @@ export async function reconnectPushNotifications(userId?: string) {
 export function OperationNotifications() {
   const { user } = useAuthUser();
   const [notice, setNotice] = useState<Notice | null>(null);
-  const [permission, setPermission] = useState<NotificationPermission | "unsupported">("unsupported");
-  const [pushReady, setPushReady] = useState(false);
+  const [pushStatus, setPushStatus] = useState<PushStatus>({
+    supported: false,
+    permission: "unsupported",
+    ready: false,
+    message: "알림 상태를 확인 중입니다.",
+  });
   const lastNoticeId = useRef<string | null>(null);
 
   const canAskPermission = useMemo(() => (
@@ -115,14 +124,19 @@ export function OperationNotifications() {
 
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
-      setPermission(Notification.permission);
+      setPushStatus((current) => ({
+        ...current,
+        permission: Notification.permission,
+        supported: true,
+        message: Notification.permission === "granted" ? "알림 권한이 허용됐습니다." : "알림 권한을 허용해 주세요.",
+      }));
     }
   }, []);
 
   useEffect(() => {
-    if (permission !== "granted" || !user || !process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) return;
-    registerPushSubscription(user.id).then((status) => setPushReady(status.ready));
-  }, [permission, user]);
+    if (pushStatus.permission !== "granted" || !user || !process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) return;
+    registerPushSubscription(user.id).then((status) => setPushStatus(status));
+  }, [pushStatus.permission, user]);
 
   useEffect(() => {
     const channel = new BroadcastChannel("hall-stock-events");
@@ -168,16 +182,21 @@ export function OperationNotifications() {
 
   async function requestPermission() {
     const next = "Notification" in window ? await Notification.requestPermission() : "unsupported";
-    setPermission(next);
+    setPushStatus((current) => ({
+      ...current,
+      permission: next,
+      supported: next !== "unsupported",
+      message: next === "granted" ? "알림 권한이 허용됐습니다." : "알림 권한을 허용해 주세요.",
+    }));
     if (next === "granted") {
       const status = await registerPushSubscription(user?.id, true);
-      setPushReady(status.ready);
+      setPushStatus(status);
     }
   }
 
   return (
     <>
-      {canAskPermission && permission === "default" ? (
+      {canAskPermission && pushStatus.permission === "default" ? (
         <button
           type="button"
           onClick={requestPermission}
@@ -186,7 +205,23 @@ export function OperationNotifications() {
           앱 알림 켜기
         </button>
       ) : null}
-      {pushReady ? <span className="sr-only">휴대폰 푸시 알림이 활성화됐습니다.</span> : null}
+      {pushStatus.permission === "granted" && !pushStatus.ready ? (
+        <div className="fixed left-4 right-4 top-[calc(env(safe-area-inset-top)+3.5rem)] z-[60] mx-auto max-w-md rounded-xl border border-border bg-yellow-50 p-3 text-sm text-yellow-900 shadow-soft">
+          <div className="flex items-center justify-between gap-3">
+            <div>{pushStatus.message}</div>
+            <button
+              type="button"
+              className="rounded-full border border-accent/20 bg-surface px-3 py-1 text-xs font-bold text-accent"
+              onClick={() => registerPushSubscription(user?.id, true).then((status) => setPushStatus(status))}
+            >
+              다시 연결
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {pushStatus.permission === "granted" && pushStatus.ready ? (
+        <span className="sr-only">휴대폰 푸시 알림이 활성화됐습니다.</span>
+      ) : null}
       {notice ? (
         <div className="fixed left-4 right-4 top-[calc(env(safe-area-inset-top)+0.75rem)] z-[70] mx-auto max-w-md rounded-xl border border-border bg-surface p-4 shadow-soft">
           <div className="flex items-start justify-between gap-3">
