@@ -1103,15 +1103,22 @@ export function useOperations(user?: User | null) {
     };
     const supabase = getSupabase();
     if (supabase) {
-      const { error } = await supabase.from("business_sessions").insert({
-        id: session.id,
-        store_id: STORE_ID,
-        status: "open",
-        opened_at: session.openedAt,
-        opened_by_name: session.openedByName,
-      });
-      if (error) throw error;
-      setBusinessSession(session);
+      const { data, error } = await supabase
+        .from("business_sessions")
+        .insert({
+          id: session.id,
+          store_id: STORE_ID,
+          status: "open",
+          opened_at: session.openedAt,
+          opened_by_name: session.openedByName,
+        })
+        .select()
+        .single();
+      if (error) {
+        console.error("openBusiness failed", error);
+        throw error;
+      }
+      setBusinessSession(data ? fromDbBusinessSession(data) : session);
       emitOperationEvent("영업 오픈 처리가 완료됐습니다.", "운영");
       return;
     }
@@ -1131,14 +1138,22 @@ export function useOperations(user?: User | null) {
     };
     const supabase = getSupabase();
     if (supabase) {
-      const { error } = await supabase.from("business_sessions").update({
-        status: "closed",
-        closed_at: closed.closedAt,
-        closed_by_name: closed.closedByName,
-        close_summary: summary,
-      }).eq("id", businessSession.id);
-      if (error) throw error;
-      setBusinessSession(closed);
+      const { data, error } = await supabase
+        .from("business_sessions")
+        .update({
+          status: "closed",
+          closed_at: closed.closedAt,
+          closed_by_name: closed.closedByName,
+          close_summary: summary,
+        })
+        .eq("id", businessSession.id)
+        .select()
+        .single();
+      if (error) {
+        console.error("closeBusiness failed", error);
+        throw error;
+      }
+      setBusinessSession(data ? fromDbBusinessSession(data) : closed);
       emitOperationEvent("영업 마감 처리가 완료됐습니다.", "운영");
       return;
     }

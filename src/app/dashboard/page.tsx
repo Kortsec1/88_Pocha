@@ -33,7 +33,12 @@ function DashboardContent() {
 
   async function handleOpen() {
     if (!confirm("영업 오픈 처리를 진행할까요? 오픈 후에는 현재 운영 상태가 영업 중으로 표시됩니다.")) return;
-    await openBusiness();
+    try {
+      await openBusiness();
+    } catch (error) {
+      console.error("Failed to open business", error);
+      alert(`영업 오픈 중 오류가 발생했습니다. ${error?.message ?? error}`);
+    }
   }
 
   return (
