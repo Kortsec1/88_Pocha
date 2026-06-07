@@ -37,7 +37,8 @@ function DashboardContent() {
       await openBusiness();
     } catch (error) {
       console.error("Failed to open business", error);
-      alert(`영업 오픈 중 오류가 발생했습니다. ${error?.message ?? error}`);
+      const message = error instanceof Error ? error.message : String(error);
+      alert(`영업 오픈 중 오류가 발생했습니다. ${message}`);
     }
   }
 
