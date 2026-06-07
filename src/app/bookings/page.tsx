@@ -65,14 +65,14 @@ export default function BookingsPage() {
           <Input placeholder="예약 제목" value={title} onChange={(event) => setTitle(event.target.value)} required />
           <div className="grid grid-cols-2 gap-3">
             <select
-              className="h-12 w-full rounded-lg border border-border bg-surface px-4 text-base font-semibold text-primary outline-none transition focus:border-accent"
+              className="h-12 min-w-0 w-full rounded-lg border border-border bg-surface px-4 text-base font-semibold text-primary outline-none transition focus:border-accent"
               value={partySize}
               onChange={(event) => setPartySize(Number(event.target.value))}
               required
             >
               {partySizeOptions.map((count) => <option key={count} value={count}>{count}명</option>)}
             </select>
-            <Input type="time" value={time} onChange={(event) => setTime(event.target.value)} required />
+            <Input className="min-w-0" type="time" value={time} onChange={(event) => setTime(event.target.value)} required />
           </div>
           <Input list="booking-menu-list" placeholder="대표 메뉴" value={menu} onChange={(event) => setMenu(event.target.value)} required />
           <datalist id="booking-menu-list">

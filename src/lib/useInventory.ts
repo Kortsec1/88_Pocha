@@ -1014,6 +1014,7 @@ export function useOperations(user?: User | null) {
       createdByName: user?.name || "직원",
     };
     const supabase = getSupabase();
+    const nextBookings = [...bookings, booking].sort((a, b) => a.time.localeCompare(b.time));
     if (supabase) {
       const { error } = await supabase.from("today_bookings").insert({
         id: booking.id,
@@ -1028,21 +1029,25 @@ export function useOperations(user?: User | null) {
         created_by_name: booking.createdByName,
       });
       if (error) throw error;
+      setBookings(nextBookings);
+      emitOperationEvent(`${booking.title} 금일 예약이 등록됐습니다.`, "예약");
       return;
     }
-    const nextBookings = [...bookings, booking].sort((a, b) => a.time.localeCompare(b.time));
     setBookings(nextBookings);
     persistDemo(reservations, tableMemos, soldOutMenus, staff, menus, nextBookings);
+    emitOperationEvent(`${booking.title} 금일 예약이 등록됐습니다.`, "예약");
   }, [bookings, menus, persistDemo, reservations, soldOutMenus, staff, tableMemos, user?.name]);
 
   const updateBookingStatus = useCallback(async (id: string, status: TodayBooking["status"]) => {
+    const nextBookings = bookings.map((booking) => (booking.id === id ? { ...booking, status, updatedAt: new Date().toISOString() } : booking));
     const supabase = getSupabase();
     if (supabase) {
       const { error } = await supabase.from("today_bookings").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
       if (error) throw error;
+      setBookings(nextBookings);
+      persistDemo(reservations, tableMemos, soldOutMenus, staff, menus, nextBookings);
       return;
     }
-    const nextBookings = bookings.map((booking) => (booking.id === id ? { ...booking, status, updatedAt: new Date().toISOString() } : booking));
     setBookings(nextBookings);
     persistDemo(reservations, tableMemos, soldOutMenus, staff, menus, nextBookings);
   }, [bookings, menus, persistDemo, reservations, soldOutMenus, staff, tableMemos]);
