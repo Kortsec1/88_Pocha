@@ -4,6 +4,7 @@ export type ItemStatus = "normal" | "low" | "empty" | "unknown";
 export type ReservationZone = "middle" | "yard";
 export type ReservationStatus = "reserved" | "arrived" | "no_show" | "canceled";
 export type BookingStatus = "scheduled" | "seated" | "completed" | "canceled";
+export type PaymentMethod = "cash" | "transfer";
 export type TableArea = "indoor" | "middle" | "yard" | "custom";
 export type TableMemoStatus = "open" | "closed";
 
@@ -151,4 +152,25 @@ export type TodayBooking = {
   createdAt: string;
   updatedAt: string;
   createdByName: string;
+};
+
+export type PaymentEntry = {
+  id: string;
+  amount: number;
+  memo?: string;
+  receiptImage?: string;
+  createdAt: string;
+  createdByName: string;
+};
+
+export type DailySettlement = {
+  id: string;
+  storeId: string;
+  date: string;
+  fruitCount: number;
+  cashEntries: PaymentEntry[];
+  transferEntries: PaymentEntry[];
+  createdAt: string;
+  updatedAt: string;
+  updatedByName: string;
 };

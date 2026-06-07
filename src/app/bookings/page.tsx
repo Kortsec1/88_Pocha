@@ -24,6 +24,8 @@ const statusLabels = {
   canceled: "취소",
 };
 
+const partySizeOptions = Array.from({ length: 40 }, (_, index) => index + 1);
+
 export default function BookingsPage() {
   const { user } = useAuthUser();
   const { bookings, menus, addBooking, updateBookingStatus } = useOperations(user);
@@ -59,23 +61,30 @@ export default function BookingsPage() {
       </header>
 
       <Card>
-        <form className="space-y-3" onSubmit={onSubmit}>
+        <form className="space-y-4" onSubmit={onSubmit}>
           <Input placeholder="예약 제목" value={title} onChange={(event) => setTitle(event.target.value)} required />
-          <div className="grid grid-cols-2 gap-2">
-            <Input type="number" min={1} placeholder="인원 수" value={partySize} onChange={(event) => setPartySize(Number(event.target.value))} required />
+          <div className="grid grid-cols-2 gap-3">
+            <select
+              className="h-12 w-full rounded-lg border border-border bg-surface px-4 text-base font-semibold text-primary outline-none transition focus:border-accent"
+              value={partySize}
+              onChange={(event) => setPartySize(Number(event.target.value))}
+              required
+            >
+              {partySizeOptions.map((count) => <option key={count} value={count}>{count}명</option>)}
+            </select>
             <Input type="time" value={time} onChange={(event) => setTime(event.target.value)} required />
           </div>
           <Input list="booking-menu-list" placeholder="대표 메뉴" value={menu} onChange={(event) => setMenu(event.target.value)} required />
           <datalist id="booking-menu-list">
             {menus.map((item) => <option key={item.id} value={item.name} />)}
           </datalist>
-          <div className="flex gap-2 overflow-x-auto pb-1">
+          <div className="flex gap-2 overflow-x-auto py-1">
             {selectableTables.map((table) => (
               <button
                 key={table}
                 type="button"
                 onClick={() => toggleTable(table)}
-                className={cn("h-10 shrink-0 rounded-full border border-border px-3 text-sm font-semibold text-secondary", tables.includes(table) && "border-accent bg-accent text-white")}
+                className={cn("h-12 shrink-0 rounded-full border border-border bg-elevated px-4 text-sm font-bold text-secondary transition active:scale-[0.98]", tables.includes(table) && "border-accent bg-accent text-white shadow-soft")}
               >
                 {table}
               </button>

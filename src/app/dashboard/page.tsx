@@ -14,11 +14,13 @@ function DashboardContent() {
   const params = useSearchParams();
   const { user } = useAuthUser();
   const { items, loading } = useInventory(user);
-  const { reservations, tableMemos, soldOutMenus, bookings } = useOperations(user);
+  const { reservations, tableMemos, soldOutMenus, bookings, settlement } = useOperations(user);
   const needs = items.filter((item) => item.status === "low" || item.status === "empty");
   const waitingReservations = reservations.filter((reservation) => reservation.status === "reserved");
   const activeBookings = bookings.filter((booking) => booking.status === "scheduled" || booking.status === "seated");
   const normalCount = items.filter((item) => item.status === "normal").length;
+  const cashTotal = settlement.cashEntries.reduce((sum, entry) => sum + entry.amount, 0);
+  const transferTotal = settlement.transferEntries.reduce((sum, entry) => sum + entry.amount, 0);
 
   return (
     <MobileShell>
@@ -63,6 +65,16 @@ function DashboardContent() {
           <div className="text-sm font-bold text-accent">테이블</div>
           <div className="mt-2 text-3xl font-black">{tableMemos.length}</div>
           <div className="mt-1 text-sm text-secondary">테이블 메모</div>
+        </Link>
+        <Link href="/settlement" className="col-span-2 rounded-lg bg-elevated p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-sm font-bold text-success">정산</div>
+              <div className="mt-2 text-3xl font-black">{(cashTotal + transferTotal).toLocaleString("ko-KR")}원</div>
+              <div className="mt-1 text-sm text-secondary">현금 {cashTotal.toLocaleString("ko-KR")} · 계좌 {transferTotal.toLocaleString("ko-KR")}</div>
+            </div>
+            <div className="rounded-full bg-surface px-3 py-1 text-sm font-bold text-accent">과일 {settlement.fruitCount}</div>
+          </div>
         </Link>
         </div>
       </section>

@@ -130,6 +130,19 @@ create table if not exists public.today_bookings (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.daily_settlements (
+  id text primary key,
+  store_id text not null references public.stores(id) on delete cascade,
+  date date not null,
+  fruit_count integer not null default 0 check (fruit_count >= 0),
+  cash_entries jsonb not null default '[]'::jsonb,
+  transfer_entries jsonb not null default '[]'::jsonb,
+  updated_by_name text not null default '직원',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (store_id, date)
+);
+
 alter table public.stores enable row level security;
 alter table public.profiles enable row level security;
 alter table public.items enable row level security;
@@ -141,6 +154,7 @@ alter table public.table_memos enable row level security;
 alter table public.sold_out_menus enable row level security;
 alter table public.menu_items enable row level security;
 alter table public.today_bookings enable row level security;
+alter table public.daily_settlements enable row level security;
 
 drop policy if exists "authenticated can read stores" on public.stores;
 create policy "authenticated can read stores"
@@ -294,6 +308,13 @@ to anon
 using (true)
 with check (true);
 
+drop policy if exists "anon can manage daily settlements" on public.daily_settlements;
+create policy "anon can manage daily settlements"
+on public.daily_settlements for all
+to anon
+using (true)
+with check (true);
+
 create or replace function public.login_with_staff_code(p_store_id text, p_code text)
 returns table (
   id text,
@@ -430,5 +451,11 @@ end $$;
 do $$
 begin
   alter publication supabase_realtime add table public.today_bookings;
+exception when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.daily_settlements;
 exception when duplicate_object then null;
 end $$;

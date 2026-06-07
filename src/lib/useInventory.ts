@@ -9,9 +9,12 @@ import { todayKey } from "@/lib/utils";
 import type {
   ClosingCheck,
   DailyClosing,
+  DailySettlement,
   InventoryLog,
   Item,
   MenuItem,
+  PaymentEntry,
+  PaymentMethod,
   Reservation,
   ReservationStatus,
   SoldOutMenu,
@@ -33,6 +36,7 @@ const TABLE_MEMOS_KEY = "hall-stock-table-memos";
 const SOLD_OUT_KEY = "hall-stock-sold-out";
 const MENUS_KEY = "hall-stock-menus";
 const BOOKINGS_KEY = "hall-stock-bookings";
+const SETTLEMENT_KEY = "hall-stock-settlement";
 
 const defaultUser: User = {
   id: "developer-park",
@@ -530,6 +534,47 @@ function fromDbBooking(row: any): TodayBooking {
   };
 }
 
+function createEmptySettlement(date = todayKey()): DailySettlement {
+  const now = new Date().toISOString();
+  return {
+    id: `settlement-${date}`,
+    storeId: STORE_ID,
+    date,
+    fruitCount: 0,
+    cashEntries: [],
+    transferEntries: [],
+    createdAt: now,
+    updatedAt: now,
+    updatedByName: "직원",
+  };
+}
+
+function normalizeSettlement(settlement?: DailySettlement | null): DailySettlement {
+  const date = todayKey();
+  if (!settlement || settlement.date !== date) return createEmptySettlement(date);
+  return {
+    ...createEmptySettlement(date),
+    ...settlement,
+    fruitCount: Math.max(0, settlement.fruitCount || 0),
+    cashEntries: settlement.cashEntries || [],
+    transferEntries: settlement.transferEntries || [],
+  };
+}
+
+function fromDbSettlement(row: any): DailySettlement {
+  return {
+    id: row.id,
+    storeId: row.store_id,
+    date: row.date,
+    fruitCount: row.fruit_count || 0,
+    cashEntries: row.cash_entries || [],
+    transferEntries: row.transfer_entries || [],
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    updatedByName: row.updated_by_name || "직원",
+  };
+}
+
 function ensureDemoMenus() {
   const current = readJson<MenuItem[]>(MENUS_KEY, []);
   if (current.length) return current.map(normalizeMenuItem);
@@ -545,6 +590,7 @@ export function useOperations(user?: User | null) {
   const [soldOutMenus, setSoldOutMenus] = useState<SoldOutMenu[]>([]);
   const [menus, setMenus] = useState<MenuItem[]>([]);
   const [bookings, setBookings] = useState<TodayBooking[]>([]);
+  const [settlement, setSettlement] = useState<DailySettlement>(() => createEmptySettlement());
   const [loading, setLoading] = useState(true);
   const broadcast = useMemo(() => (typeof window !== "undefined" ? new BroadcastChannel("hall-stock-ops") : null), []);
 
@@ -556,19 +602,21 @@ export function useOperations(user?: User | null) {
     setSoldOutMenus(readJson<SoldOutMenu[]>(SOLD_OUT_KEY, []));
     setMenus(ensureDemoMenus());
     setBookings(readJson<TodayBooking[]>(BOOKINGS_KEY, []));
+    setSettlement(normalizeSettlement(readJson<DailySettlement | null>(SETTLEMENT_KEY, null)));
     setLoading(false);
   }, []);
 
   const loadSupabase = useCallback(async () => {
     const supabase = getSupabase();
     if (!supabase) return;
-    const [{ data: staffRows }, { data: reservationRows }, { data: memoRows }, { data: soldOutRows }, { data: menuRows }, { data: bookingRows }] = await Promise.all([
+    const [{ data: staffRows }, { data: reservationRows }, { data: memoRows }, { data: soldOutRows }, { data: menuRows }, { data: bookingRows }, { data: settlementRows }] = await Promise.all([
       supabase.from("app_users").select("*").eq("store_id", STORE_ID).order("created_at"),
       supabase.from("reservations").select("*").eq("store_id", STORE_ID).order("sort_order"),
       supabase.from("table_memos").select("*").eq("store_id", STORE_ID).eq("status", "open").order("updated_at", { ascending: false }),
       supabase.from("sold_out_menus").select("*").eq("store_id", STORE_ID).eq("active", true).order("created_at", { ascending: false }),
       supabase.from("menu_items").select("*").eq("store_id", STORE_ID).eq("active", true).order("category").order("name"),
       supabase.from("today_bookings").select("*").eq("store_id", STORE_ID).order("time"),
+      supabase.from("daily_settlements").select("*").eq("store_id", STORE_ID).eq("date", todayKey()).limit(1),
     ]);
     if (!staffRows?.length) {
       await supabase.from("app_users").upsert(defaultStaff.map((member) => ({
@@ -597,6 +645,7 @@ export function useOperations(user?: User | null) {
     setSoldOutMenus((soldOutRows || []).map(fromDbSoldOut));
     setMenus((menuRows?.length ? menuRows : initialMenuItems.map((item) => ({ ...item, store_id: STORE_ID, active: true }))).map(fromDbMenu));
     setBookings((bookingRows || []).map(fromDbBooking));
+    setSettlement(settlementRows?.length ? fromDbSettlement(settlementRows[0]) : createEmptySettlement());
     setLoading(false);
   }, []);
 
@@ -620,21 +669,23 @@ export function useOperations(user?: User | null) {
       .on("postgres_changes", { event: "*", schema: "public", table: "sold_out_menus", filter: `store_id=eq.${STORE_ID}` }, loadSupabase)
       .on("postgres_changes", { event: "*", schema: "public", table: "menu_items", filter: `store_id=eq.${STORE_ID}` }, loadSupabase)
       .on("postgres_changes", { event: "*", schema: "public", table: "today_bookings", filter: `store_id=eq.${STORE_ID}` }, loadSupabase)
+      .on("postgres_changes", { event: "*", schema: "public", table: "daily_settlements", filter: `store_id=eq.${STORE_ID}` }, loadSupabase)
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
   }, [broadcast, loadDemo, loadSupabase]);
 
-  const persistDemo = useCallback((nextReservations = reservations, nextMemos = tableMemos, nextSoldOut = soldOutMenus, nextStaff = staff, nextMenus = menus, nextBookings = bookings) => {
+  const persistDemo = useCallback((nextReservations = reservations, nextMemos = tableMemos, nextSoldOut = soldOutMenus, nextStaff = staff, nextMenus = menus, nextBookings = bookings, nextSettlement = settlement) => {
     writeJson(RESERVATIONS_KEY, nextReservations);
     writeJson(TABLE_MEMOS_KEY, nextMemos);
     writeJson(SOLD_OUT_KEY, nextSoldOut);
     writeJson(STAFF_KEY, nextStaff);
     writeJson(MENUS_KEY, nextMenus);
     writeJson(BOOKINGS_KEY, nextBookings);
+    writeJson(SETTLEMENT_KEY, nextSettlement);
     broadcast?.postMessage("changed");
-  }, [bookings, broadcast, menus, reservations, soldOutMenus, staff, tableMemos]);
+  }, [bookings, broadcast, menus, reservations, settlement, soldOutMenus, staff, tableMemos]);
 
   const addStaff = useCallback(async (name: string, code: string, role: StaffUser["role"] = "staff") => {
     const member: StaffUser = {
@@ -884,6 +935,58 @@ export function useOperations(user?: User | null) {
     persistDemo(reservations, tableMemos, soldOutMenus, staff, menus, nextBookings);
   }, [bookings, menus, persistDemo, reservations, soldOutMenus, staff, tableMemos]);
 
+  const saveSettlement = useCallback(async (nextSettlement: DailySettlement) => {
+    const normalized: DailySettlement = {
+      ...nextSettlement,
+      fruitCount: Math.max(0, Math.round(nextSettlement.fruitCount)),
+      updatedAt: new Date().toISOString(),
+      updatedByName: user?.name || "직원",
+    };
+    const supabase = getSupabase();
+    if (supabase) {
+      const { error } = await supabase.from("daily_settlements").upsert({
+        id: normalized.id,
+        store_id: STORE_ID,
+        date: normalized.date,
+        fruit_count: normalized.fruitCount,
+        cash_entries: normalized.cashEntries,
+        transfer_entries: normalized.transferEntries,
+        updated_by_name: normalized.updatedByName,
+        updated_at: normalized.updatedAt,
+      });
+      if (error) throw error;
+      return;
+    }
+    setSettlement(normalized);
+    persistDemo(reservations, tableMemos, soldOutMenus, staff, menus, bookings, normalized);
+  }, [bookings, menus, persistDemo, reservations, soldOutMenus, staff, tableMemos, user?.name]);
+
+  const updateFruitCount = useCallback(async (fruitCount: number) => {
+    await saveSettlement({ ...settlement, fruitCount });
+  }, [saveSettlement, settlement]);
+
+  const addPaymentEntry = useCallback(async (method: PaymentMethod, input: Pick<PaymentEntry, "amount" | "memo" | "receiptImage">) => {
+    const entry: PaymentEntry = {
+      id: crypto.randomUUID(),
+      amount: Math.max(0, Math.round(input.amount)),
+      memo: input.memo?.trim() || undefined,
+      receiptImage: input.receiptImage,
+      createdAt: new Date().toISOString(),
+      createdByName: user?.name || "직원",
+    };
+    const nextSettlement: DailySettlement = method === "cash"
+      ? { ...settlement, cashEntries: [entry, ...settlement.cashEntries] }
+      : { ...settlement, transferEntries: [entry, ...settlement.transferEntries] };
+    await saveSettlement(nextSettlement);
+  }, [saveSettlement, settlement, user?.name]);
+
+  const removePaymentEntry = useCallback(async (method: PaymentMethod, id: string) => {
+    const nextSettlement: DailySettlement = method === "cash"
+      ? { ...settlement, cashEntries: settlement.cashEntries.filter((entry) => entry.id !== id) }
+      : { ...settlement, transferEntries: settlement.transferEntries.filter((entry) => entry.id !== id) };
+    await saveSettlement(nextSettlement);
+  }, [saveSettlement, settlement]);
+
   return {
     staff,
     reservations,
@@ -891,6 +994,7 @@ export function useOperations(user?: User | null) {
     soldOutMenus: soldOutMenus.filter((menu) => menu.active),
     menus: menus.filter((menu) => menu.active !== false),
     bookings,
+    settlement,
     loading,
     addStaff,
     addReservation,
@@ -902,5 +1006,8 @@ export function useOperations(user?: User | null) {
     removeMenu,
     addBooking,
     updateBookingStatus,
+    updateFruitCount,
+    addPaymentEntry,
+    removePaymentEntry,
   };
 }
