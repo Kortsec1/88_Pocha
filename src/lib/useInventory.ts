@@ -818,6 +818,7 @@ export function useOperations(user?: User | null) {
       createdByName: user?.name || "직원",
     };
     const supabase = getSupabase();
+    const next = [...reservations, reservation].sort((a, b) => a.sortOrder - b.sortOrder);
     if (supabase) {
       const { error } = await supabase.from("reservations").insert({
         id: reservation.id,
@@ -832,10 +833,10 @@ export function useOperations(user?: User | null) {
         created_by_name: reservation.createdByName,
       });
       if (error) throw error;
+      setReservations(next);
       emitOperationEvent(`${reservation.name}님 웨이팅이 등록됐습니다.`, "웨이팅");
       return;
     }
-    const next = [...reservations, reservation].sort((a, b) => a.sortOrder - b.sortOrder);
     setReservations(next);
     persistDemo(next);
     emitOperationEvent(`${reservation.name}님 웨이팅이 등록됐습니다.`, "웨이팅");
