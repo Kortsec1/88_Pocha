@@ -1,4 +1,4 @@
-const CACHE_NAME = "hall-stock-v1";
+const CACHE_NAME = "hall-stock-v2";
 const APP_SHELL = ["/", "/dashboard", "/items", "/closing", "/history", "/settings", "/manifest.json", "/icon.svg"];
 
 self.addEventListener("install", (event) => {

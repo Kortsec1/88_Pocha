@@ -12,6 +12,15 @@ type Notice = {
   createdAt: string;
 };
 
+export type PushStatus = {
+  supported: boolean;
+  permission: NotificationPermission | "unsupported";
+  ready: boolean;
+  message: string;
+};
+
+const PUSH_STATUS_EVENT = "hall-stock-push-status";
+
 function notifySystem(title: string, body: string) {
   if (typeof window === "undefined" || !("Notification" in window)) return;
   if (Notification.permission !== "granted") return;
@@ -27,6 +36,58 @@ function urlBase64ToUint8Array(value: string) {
   const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
   const rawData = window.atob(base64);
   return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
+}
+
+function emitPushStatus(status: PushStatus) {
+  window.dispatchEvent(new CustomEvent<PushStatus>(PUSH_STATUS_EVENT, { detail: status }));
+}
+
+async function registerPushSubscription(userId?: string, forceNew = false) {
+  if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+    const status = { supported: false, permission: "unsupported" as const, ready: false, message: "이 기기는 웹 푸시 알림을 지원하지 않습니다." };
+    emitPushStatus(status);
+    return status;
+  }
+  if (Notification.permission !== "granted") {
+    const status = { supported: true, permission: Notification.permission, ready: false, message: "알림 권한이 아직 허용되지 않았습니다." };
+    emitPushStatus(status);
+    return status;
+  }
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  if (!publicKey) {
+    const status = { supported: true, permission: Notification.permission, ready: false, message: "푸시 공개키가 설정되지 않았습니다." };
+    emitPushStatus(status);
+    return status;
+  }
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const existing = await registration.pushManager.getSubscription();
+    if (forceNew && existing) await existing.unsubscribe();
+    const current = forceNew ? null : existing;
+    const subscription = current || await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicKey),
+    });
+    const response = await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ storeId: STORE_ID, userId, subscription }),
+    });
+    if (!response.ok) throw new Error("구독 저장 실패");
+    const status = { supported: true, permission: Notification.permission, ready: true, message: "휴대폰 푸시 알림이 연결됐습니다." };
+    emitPushStatus(status);
+    return status;
+  } catch {
+    const status = { supported: true, permission: Notification.permission, ready: false, message: "푸시 구독 저장에 실패했습니다. 앱을 홈 화면에서 실행한 뒤 다시 시도해 주세요." };
+    emitPushStatus(status);
+    return status;
+  }
+}
+
+export async function reconnectPushNotifications(userId?: string) {
+  if (!("Notification" in window)) return registerPushSubscription(userId, true);
+  if (Notification.permission === "default") await Notification.requestPermission();
+  return registerPushSubscription(userId, true);
 }
 
 export function OperationNotifications() {
@@ -60,19 +121,7 @@ export function OperationNotifications() {
 
   useEffect(() => {
     if (permission !== "granted" || !user || !process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) return;
-    navigator.serviceWorker.ready.then(async (registration) => {
-      const existing = await registration.pushManager.getSubscription();
-      const subscription = existing || await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ""),
-      });
-      await fetch("/api/push/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ storeId: STORE_ID, userId: user.id, subscription }),
-      });
-      setPushReady(true);
-    }).catch(() => setPushReady(false));
+    registerPushSubscription(user.id).then((status) => setPushReady(status.ready));
   }, [permission, user]);
 
   useEffect(() => {
@@ -115,9 +164,12 @@ export function OperationNotifications() {
   }, [showNotice]);
 
   async function requestPermission() {
-    if (!("Notification" in window)) return;
-    const next = await Notification.requestPermission();
+    const next = "Notification" in window ? await Notification.requestPermission() : "unsupported";
     setPermission(next);
+    if (next === "granted") {
+      const status = await registerPushSubscription(user?.id, true);
+      setPushReady(status.ready);
+    }
   }
 
   return (

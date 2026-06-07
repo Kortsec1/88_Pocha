@@ -764,6 +764,26 @@ export function useOperations(user?: User | null) {
     persistDemo(reservations, tableMemos, soldOutMenus, nextStaff);
   }, [persistDemo, reservations, soldOutMenus, staff, tableMemos, user?.id]);
 
+  const updateStaffRole = useCallback(async (id: string, role: StaffUser["role"]) => {
+    if (id === user?.id || role === "developer") return;
+    const target = staff.find((member) => member.id === id);
+    if (!target || target.role === "developer") return;
+    const supabase = getSupabase();
+    if (supabase) {
+      const { error } = await supabase
+        .from("app_users")
+        .update({ role })
+        .eq("id", id)
+        .eq("store_id", STORE_ID)
+        .neq("role", "developer");
+      if (error) throw error;
+      return;
+    }
+    const nextStaff = staff.map((member) => (member.id === id ? { ...member, role } : member));
+    setStaff(nextStaff);
+    persistDemo(reservations, tableMemos, soldOutMenus, nextStaff);
+  }, [persistDemo, reservations, soldOutMenus, staff, tableMemos, user?.id]);
+
   const addReservation = useCallback(async (input: Pick<Reservation, "zone" | "name" | "partySize" | "phone" | "memo">) => {
     const now = new Date().toISOString();
     const reservation: Reservation = {
@@ -1062,6 +1082,7 @@ export function useOperations(user?: User | null) {
     loading,
     addStaff,
     removeStaff,
+    updateStaffRole,
     addReservation,
     updateReservationStatus,
     saveTableMemo,

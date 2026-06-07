@@ -39,14 +39,19 @@ export async function POST(request: Request) {
   if (error || !data?.length) return NextResponse.json({ ok: true, sent: 0 });
 
   let sent = 0;
+  let failed = 0;
   await Promise.all(data.map(async (row) => {
     try {
       await webPush.sendNotification(row.subscription, payload);
       sent += 1;
-    } catch {
-      await supabase.from("push_subscriptions").update({ active: false, updated_at: new Date().toISOString() }).eq("endpoint", row.endpoint);
+    } catch (error) {
+      failed += 1;
+      const statusCode = typeof error === "object" && error && "statusCode" in error ? Number(error.statusCode) : 0;
+      if (statusCode === 404 || statusCode === 410) {
+        await supabase.from("push_subscriptions").update({ active: false, updated_at: new Date().toISOString() }).eq("endpoint", row.endpoint);
+      }
     }
   }));
 
-  return NextResponse.json({ ok: true, sent });
+  return NextResponse.json({ ok: true, sent, failed });
 }
