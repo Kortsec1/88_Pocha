@@ -2,19 +2,19 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { History, LogOut, Smartphone, UserPlus } from "lucide-react";
+import { History, LogOut, Smartphone, Trash2, UserPlus } from "lucide-react";
 import { MobileShell } from "@/components/layout/MobileShell";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
-import { developerCode, menuCategoryLabels } from "@/lib/menu";
+import { menuCategoryLabels } from "@/lib/menu";
 import type { MenuCategory, MenuItem } from "@/lib/types";
 import { useAuthUser, useInventory, useOperations } from "@/lib/useInventory";
 
 export default function SettingsPage() {
   const { user, signOut, demoMode } = useAuthUser();
   const { closings } = useInventory(user);
-  const { staff, addStaff, menus, saveMenu, removeMenu } = useOperations(user);
+  const { staff, addStaff, removeStaff, menus, saveMenu, removeMenu } = useOperations(user);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [menuForm, setMenuForm] = useState<{ id?: string; name: string; category: MenuCategory; price: number }>({
@@ -40,6 +40,8 @@ export default function SettingsPage() {
     setMenuForm({ id: menu.id, name: menu.name, category: menu.category, price: menu.price });
   }
 
+  const activeStaff = staff.filter((member) => member.active);
+
   return (
     <MobileShell>
       <header className="mb-5">
@@ -51,7 +53,6 @@ export default function SettingsPage() {
           <div className="text-sm text-secondary">로그인 사용자</div>
           <div className="mt-1 text-lg font-semibold">{user?.name || "미로그인"}</div>
           <div className="text-sm text-secondary">권한: {user?.role}</div>
-          {user?.role === "developer" ? <div className="mt-2 rounded-lg bg-accent/10 p-2 text-sm text-accent">개발자 코드: {developerCode}</div> : null}
         </Card>
         {user?.role === "developer" || user?.role === "admin" ? (
           <>
@@ -65,11 +66,18 @@ export default function SettingsPage() {
                 <Button className="w-full">사용자 추가</Button>
               </form>
               <div className="mt-4 space-y-2">
-                {staff.map((member) => (
-                  <div key={member.id} className="rounded-lg border border-border bg-background/60 p-3">
-                    <div className="font-semibold">{member.name}</div>
-                    <div className="font-mono text-sm text-accent">{member.code}</div>
-                    <div className="text-xs text-secondary">{member.role}</div>
+                {activeStaff.map((member) => (
+                  <div key={member.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background/60 p-3">
+                    <div>
+                      <div className="font-semibold">{member.name}</div>
+                      <div className="font-mono text-sm text-secondary">개인 코드 등록됨</div>
+                      <div className="text-xs text-secondary">{member.role}</div>
+                    </div>
+                    {user?.role === "developer" && member.id !== user.id && member.role !== "developer" ? (
+                      <Button variant="ghost" size="sm" onClick={() => removeStaff(member.id)}>
+                        <Trash2 size={15} /> 삭제
+                      </Button>
+                    ) : null}
                   </div>
                 ))}
               </div>

@@ -21,14 +21,22 @@ function DashboardContent() {
   const normalCount = items.filter((item) => item.status === "normal").length;
   const cashTotal = settlement.cashEntries.reduce((sum, entry) => sum + entry.amount, 0);
   const transferTotal = settlement.transferEntries.reduce((sum, entry) => sum + entry.amount, 0);
+  const settlementTotal = cashTotal + transferTotal;
+  const dashboardCards = [
+    { href: "/items", label: "재고 점검", value: needs.length, caption: `정상 ${normalCount} / 전체 ${items.length}` },
+    { href: "/reservations", label: "웨이팅", value: waitingReservations.length, caption: "현재 접수" },
+    { href: "/bookings", label: "금일 예약", value: activeBookings.length, caption: "예정 및 착석" },
+    { href: "/tables", label: "테이블 메모", value: tableMemos.length, caption: "진행 중" },
+  ];
 
   return (
     <MobileShell>
-      <header className="mb-5">
+      <header className="mb-5 flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm text-secondary">{formatDate()}</p>
-          <h1 className="mt-1 text-3xl font-black"><span className="text-success">88</span><span className="text-accent">포차 운영판</span></h1>
+          <p className="text-sm font-medium text-secondary">{formatDate()}</p>
+          <h1 className="mt-1 text-3xl font-black text-primary">88포차 운영판</h1>
         </div>
+        <div className="rounded-full border border-accent/20 bg-surface px-3 py-1 text-sm font-black text-accent shadow-soft">1988</div>
       </header>
 
       {loading ? <p className="text-secondary">재고를 불러오는 중입니다.</p> : null}
@@ -36,59 +44,49 @@ function DashboardContent() {
         <div className="mb-4 rounded-lg border border-success/40 bg-success/10 p-3 text-sm font-semibold text-success">재고 수정이 저장됐습니다.</div>
       ) : null}
 
-      <section className="rounded-lg border border-accent/15 bg-surface p-4 shadow-soft">
-        <div className="mb-4 flex items-center justify-between">
+      <section className="rounded-lg border border-border bg-surface p-5 shadow-soft">
+        <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <div className="text-sm font-bold text-accent">TODAY</div>
-            <div className="text-xl font-black">홀 운영 요약</div>
+            <div className="mt-1 text-2xl font-black">운영 요약</div>
+            <p className="mt-1 text-sm text-secondary">웨이팅, 예약, 재고, 정산을 한 화면에서 확인합니다.</p>
           </div>
-          <div className="rounded-full bg-accent px-3 py-1 text-sm font-black text-white">1988</div>
+          <div className="text-right">
+            <div className="text-xs font-bold text-secondary">정산 합계</div>
+            <div className="mt-1 text-lg font-black">{settlementTotal.toLocaleString("ko-KR")}원</div>
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-2">
-        <Link href="/items" className="rounded-lg bg-elevated p-4">
-          <div className="text-sm font-bold text-accent">재고</div>
-          <div className="mt-2 text-3xl font-black">{needs.length}</div>
-          <div className="mt-1 text-sm text-secondary">확인 필요</div>
-          <div className="mt-2 text-xs text-secondary">정상 {normalCount} / 전체 {items.length}</div>
-        </Link>
-        <Link href="/reservations" className="rounded-lg bg-elevated p-4">
-          <div className="text-sm font-bold text-warning">웨이팅</div>
-          <div className="mt-2 text-3xl font-black">{waitingReservations.length}</div>
-          <div className="mt-1 text-sm text-secondary">웨이팅 접수</div>
-        </Link>
-        <Link href="/bookings" className="rounded-lg bg-elevated p-4">
-          <div className="text-sm font-bold text-success">예약</div>
-          <div className="mt-2 text-3xl font-black">{activeBookings.length}</div>
-          <div className="mt-1 text-sm text-secondary">금일 예약</div>
-        </Link>
-        <Link href="/tables" className="rounded-lg bg-elevated p-4">
-          <div className="text-sm font-bold text-accent">테이블</div>
-          <div className="mt-2 text-3xl font-black">{tableMemos.length}</div>
-          <div className="mt-1 text-sm text-secondary">테이블 메모</div>
-        </Link>
-        <Link href="/settlement" className="col-span-2 rounded-lg bg-elevated p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="text-sm font-bold text-success">정산</div>
-              <div className="mt-2 text-3xl font-black">{(cashTotal + transferTotal).toLocaleString("ko-KR")}원</div>
-              <div className="mt-1 text-sm text-secondary">현금 {cashTotal.toLocaleString("ko-KR")} · 계좌 {transferTotal.toLocaleString("ko-KR")}</div>
+        <div className="grid grid-cols-2 gap-3">
+          {dashboardCards.map((card) => (
+            <Link key={card.href} href={card.href} className="rounded-lg border border-border bg-background/70 p-4 transition active:scale-[0.98]">
+              <div className="text-sm font-bold text-secondary">{card.label}</div>
+              <div className="mt-3 text-3xl font-black tabular-nums text-primary">{card.value}</div>
+              <div className="mt-1 text-xs font-medium text-secondary">{card.caption}</div>
+            </Link>
+          ))}
+          <Link href="/settlement" className="col-span-2 rounded-lg border border-accent/15 bg-accent/[0.04] p-4 transition active:scale-[0.98]">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-sm font-bold text-accent">일일 정산</div>
+                <div className="mt-2 text-3xl font-black tabular-nums">{settlementTotal.toLocaleString("ko-KR")}원</div>
+                <div className="mt-1 text-sm text-secondary">현금 {cashTotal.toLocaleString("ko-KR")} · 계좌 {transferTotal.toLocaleString("ko-KR")}</div>
+              </div>
+              <div className="rounded-full border border-border bg-surface px-3 py-1 text-sm font-bold text-primary">과일 {settlement.fruitCount}</div>
             </div>
-            <div className="rounded-full bg-surface px-3 py-1 text-sm font-bold text-accent">과일 {settlement.fruitCount}</div>
-          </div>
-        </Link>
+          </Link>
         </div>
       </section>
 
-      <Link href="/soldout" className="mt-3 block rounded-lg border border-border bg-surface p-4">
+      <Link href="/soldout" className="mt-3 block rounded-lg border border-border bg-surface p-4 shadow-soft">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-danger/10 text-sm font-black text-danger">품절</span>
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/[0.06] text-sm font-black text-accent">품절</span>
             <div>
               <div className="font-semibold">품절 메뉴</div>
               <div className="text-sm text-secondary">{soldOutMenus.length ? soldOutMenus.map((menu) => menu.menuName).join(", ") : "등록된 품절 메뉴 없음"}</div>
             </div>
           </div>
-          <span className="text-2xl font-bold">{soldOutMenus.length}</span>
+          <span className="text-2xl font-black tabular-nums">{soldOutMenus.length}</span>
         </div>
       </Link>
 
