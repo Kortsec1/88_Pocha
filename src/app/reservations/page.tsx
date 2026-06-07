@@ -29,6 +29,13 @@ export default function ReservationsPage() {
   const [phone, setPhone] = useState("");
   const [memo, setMemo] = useState("");
 
+  const waitingReservations = reservations
+    .filter((reservation) => reservation.status === "reserved")
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+  const handledReservations = reservations
+    .filter((reservation) => reservation.status !== "reserved")
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     await addReservation({ zone, name, partySize, phone, memo: memo.trim() || undefined });
@@ -77,9 +84,9 @@ export default function ReservationsPage() {
       </Card>
 
       <section className="mt-6 space-y-3">
-        {reservations.length ? (
-          reservations.map((reservation, index) => (
-            <Card key={reservation.id} className={cn(reservation.status !== "reserved" && "opacity-60")}>
+        {waitingReservations.length ? (
+          waitingReservations.map((reservation, index) => (
+            <Card key={reservation.id}>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="text-xs text-secondary">#{index + 1} · {reservation.zone === "middle" ? "미들" : "야장"} · {formatTime(reservation.createdAt)}</div>
@@ -91,18 +98,37 @@ export default function ReservationsPage() {
                 </div>
                 <span className="rounded-full border border-border px-3 py-1 text-xs text-secondary">{statusLabels[reservation.status]}</span>
               </div>
-              {reservation.status === "reserved" ? (
-                <div className="mt-4 grid grid-cols-2 gap-2">
-                  <Button variant="secondary" onClick={() => updateReservationStatus(reservation.id, "arrived")}>입장 완료</Button>
-                  <Button variant="ghost" onClick={() => updateReservationStatus(reservation.id, "canceled")}>취소</Button>
-                </div>
-              ) : null}
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <Button variant="secondary" onClick={() => updateReservationStatus(reservation.id, "arrived")}>입장 완료</Button>
+                <Button variant="ghost" onClick={() => updateReservationStatus(reservation.id, "canceled")}>취소</Button>
+              </div>
             </Card>
           ))
         ) : (
           <p className="text-sm text-secondary">현재 접수된 웨이팅이 없습니다.</p>
         )}
       </section>
+
+      {handledReservations.length ? (
+        <section className="mt-6 space-y-3">
+          <div className="text-sm font-semibold text-secondary">처리된 웨이팅</div>
+          {handledReservations.map((reservation) => (
+            <Card key={reservation.id} className="opacity-60">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-xs text-secondary">{reservation.zone === "middle" ? "미들" : "야장"} · {formatTime(reservation.createdAt)}</div>
+                  <h2 className="mt-1 text-xl font-bold">{reservation.name} · {reservation.partySize}명</h2>
+                  <a className="mt-2 inline-flex items-center gap-2 text-accent" href={`tel:${reservation.phone}`}>
+                    <Phone size={16} /> {reservation.phone}
+                  </a>
+                  {reservation.memo ? <p className="mt-2 text-sm text-secondary">{reservation.memo}</p> : null}
+                </div>
+                <span className="rounded-full border border-border px-3 py-1 text-xs text-secondary">{statusLabels[reservation.status]}</span>
+              </div>
+            </Card>
+          ))}
+        </section>
+      ) : null}
     </MobileShell>
   );
 }
