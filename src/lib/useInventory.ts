@@ -1111,6 +1111,7 @@ export function useOperations(user?: User | null) {
         opened_by_name: session.openedByName,
       });
       if (error) throw error;
+      setBusinessSession(session);
       emitOperationEvent("영업 오픈 처리가 완료됐습니다.", "운영");
       return;
     }
@@ -1137,6 +1138,7 @@ export function useOperations(user?: User | null) {
         close_summary: summary,
       }).eq("id", businessSession.id);
       if (error) throw error;
+      setBusinessSession(closed);
       emitOperationEvent("영업 마감 처리가 완료됐습니다.", "운영");
       return;
     }
