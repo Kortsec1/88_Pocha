@@ -328,6 +328,8 @@ export function useInventory(user?: User | null) {
         createdAt: now,
       };
 
+      const nextItems = items.map((item) => (item.id === itemId ? nextItem : item));
+      const nextLogs = [log, ...logs].slice(0, 100);
       const supabase = getSupabase();
       if (supabase) {
         const { error } = await supabase.rpc("update_item_quantity", {
@@ -339,11 +341,12 @@ export function useInventory(user?: User | null) {
           p_updated_by_name: currentUser.name,
         });
         if (error) throw error;
+        setItems(nextItems);
+        setLogs(nextLogs);
+        persistDemo(nextItems, nextLogs);
         return;
       }
 
-      const nextItems = items.map((item) => (item.id === itemId ? nextItem : item));
-      const nextLogs = [log, ...logs].slice(0, 100);
       setItems(nextItems);
       setLogs(nextLogs);
       persistDemo(nextItems, nextLogs);
@@ -366,6 +369,7 @@ export function useInventory(user?: User | null) {
         updatedBy: currentUser.name,
       };
 
+      const nextItems = items.map((item) => (item.id === itemId ? nextItem : item));
       const supabase = getSupabase();
       if (supabase) {
         const { error } = await supabase
@@ -380,12 +384,13 @@ export function useInventory(user?: User | null) {
           })
           .eq("id", itemId);
         if (error) throw error;
+        setItems(nextItems);
+        persistDemo(nextItems);
         return;
       }
 
-    const nextItems = items.map((item) => (item.id === itemId ? nextItem : item));
-    setItems(nextItems);
-    persistDemo(nextItems);
+      setItems(nextItems);
+      persistDemo(nextItems);
   },
     [items, persistDemo, user],
   );
@@ -742,6 +747,7 @@ export function useOperations(user?: User | null) {
       active: true,
       createdAt: new Date().toISOString(),
     };
+    const nextStaff = [...staff, member];
     const supabase = getSupabase();
     if (supabase) {
       const { error } = await supabase.from("app_users").insert({
@@ -754,9 +760,10 @@ export function useOperations(user?: User | null) {
         created_at: member.createdAt,
       });
       if (error) throw error;
+      setStaff(nextStaff);
+      persistDemo(reservations, tableMemos, soldOutMenus, nextStaff);
       return;
     }
-    const nextStaff = [...staff, member];
     setStaff(nextStaff);
     persistDemo(reservations, tableMemos, soldOutMenus, nextStaff);
   }, [persistDemo, reservations, soldOutMenus, staff, tableMemos]);
@@ -765,6 +772,7 @@ export function useOperations(user?: User | null) {
     if (id === user?.id) return;
     const target = staff.find((member) => member.id === id);
     if (!target || target.role === "developer") return;
+    const nextStaff = staff.map((member) => (member.id === id ? { ...member, active: false } : member));
     const supabase = getSupabase();
     if (supabase) {
       const { error } = await supabase
@@ -774,9 +782,10 @@ export function useOperations(user?: User | null) {
         .eq("store_id", STORE_ID)
         .neq("role", "developer");
       if (error) throw error;
+      setStaff(nextStaff);
+      persistDemo(reservations, tableMemos, soldOutMenus, nextStaff);
       return;
     }
-    const nextStaff = staff.map((member) => (member.id === id ? { ...member, active: false } : member));
     setStaff(nextStaff);
     persistDemo(reservations, tableMemos, soldOutMenus, nextStaff);
   }, [persistDemo, reservations, soldOutMenus, staff, tableMemos, user?.id]);
@@ -785,6 +794,7 @@ export function useOperations(user?: User | null) {
     if (id === user?.id || role === "developer") return;
     const target = staff.find((member) => member.id === id);
     if (!target || target.role === "developer") return;
+    const nextStaff = staff.map((member) => (member.id === id ? { ...member, role } : member));
     const supabase = getSupabase();
     if (supabase) {
       const { error } = await supabase
@@ -794,9 +804,10 @@ export function useOperations(user?: User | null) {
         .eq("store_id", STORE_ID)
         .neq("role", "developer");
       if (error) throw error;
+      setStaff(nextStaff);
+      persistDemo(reservations, tableMemos, soldOutMenus, nextStaff);
       return;
     }
-    const nextStaff = staff.map((member) => (member.id === id ? { ...member, role } : member));
     setStaff(nextStaff);
     persistDemo(reservations, tableMemos, soldOutMenus, nextStaff);
   }, [persistDemo, reservations, soldOutMenus, staff, tableMemos, user?.id]);
@@ -890,6 +901,7 @@ export function useOperations(user?: User | null) {
       updatedAt: now,
       updatedByName: user?.name || "직원",
     };
+    const next = [nextMemo, ...tableMemos.filter((row) => row.id !== nextMemo.id)];
     const supabase = getSupabase();
     if (supabase) {
       const { error } = await supabase.from("table_memos").upsert({
@@ -904,9 +916,10 @@ export function useOperations(user?: User | null) {
         updated_by_name: nextMemo.updatedByName,
       });
       if (error) throw error;
+      setTableMemos(next);
+      persistDemo(reservations, next);
       return;
     }
-    const next = [nextMemo, ...tableMemos.filter((row) => row.id !== nextMemo.id)];
     setTableMemos(next);
     persistDemo(reservations, next);
   }, [persistDemo, reservations, tableMemos, user?.name]);
@@ -923,6 +936,7 @@ export function useOperations(user?: User | null) {
       updatedAt: now,
       createdByName: user?.name || "직원",
     };
+    const next = [soldOut, ...soldOutMenus];
     const supabase = getSupabase();
     if (supabase) {
       const { error } = await supabase.from("sold_out_menus").insert({
@@ -934,23 +948,26 @@ export function useOperations(user?: User | null) {
         created_by_name: soldOut.createdByName,
       });
       if (error) throw error;
+      setSoldOutMenus(next);
+      persistDemo(reservations, tableMemos, next);
       emitOperationEvent(`${soldOut.menuName} 품절이 등록됐습니다.`, "품절");
       return;
     }
-    const next = [soldOut, ...soldOutMenus];
     setSoldOutMenus(next);
     persistDemo(reservations, tableMemos, next);
     emitOperationEvent(`${soldOut.menuName} 품절이 등록됐습니다.`, "품절");
   }, [persistDemo, reservations, soldOutMenus, tableMemos, user?.name]);
 
   const resolveSoldOutMenu = useCallback(async (id: string) => {
+    const next = soldOutMenus.map((menu) => (menu.id === id ? { ...menu, active: false, updatedAt: new Date().toISOString() } : menu));
     const supabase = getSupabase();
     if (supabase) {
       const { error } = await supabase.from("sold_out_menus").update({ active: false, updated_at: new Date().toISOString() }).eq("id", id);
       if (error) throw error;
+      setSoldOutMenus(next);
+      persistDemo(reservations, tableMemos, next);
       return;
     }
-    const next = soldOutMenus.map((menu) => (menu.id === id ? { ...menu, active: false, updatedAt: new Date().toISOString() } : menu));
     setSoldOutMenus(next);
     persistDemo(reservations, tableMemos, next);
   }, [persistDemo, reservations, soldOutMenus, tableMemos]);
@@ -966,6 +983,7 @@ export function useOperations(user?: User | null) {
       active: input.active ?? true,
       updatedAt: now,
     };
+    const nextMenus = [menu, ...menus.filter((item) => item.id !== menu.id)].sort((a, b) => a.name.localeCompare(b.name, "ko"));
     const supabase = getSupabase();
     if (supabase) {
       const { error } = await supabase.from("menu_items").upsert({
@@ -978,21 +996,24 @@ export function useOperations(user?: User | null) {
         updated_at: now,
       });
       if (error) throw error;
+      setMenus(nextMenus);
+      persistDemo(reservations, tableMemos, soldOutMenus, staff, nextMenus, bookings);
       return;
     }
-    const nextMenus = [menu, ...menus.filter((item) => item.id !== menu.id)].sort((a, b) => a.name.localeCompare(b.name, "ko"));
     setMenus(nextMenus);
     persistDemo(reservations, tableMemos, soldOutMenus, staff, nextMenus, bookings);
   }, [bookings, menus, persistDemo, reservations, soldOutMenus, staff, tableMemos]);
 
   const removeMenu = useCallback(async (id: string) => {
+    const nextMenus = menus.filter((item) => item.id !== id);
     const supabase = getSupabase();
     if (supabase) {
       const { error } = await supabase.from("menu_items").update({ active: false, updated_at: new Date().toISOString() }).eq("id", id);
       if (error) throw error;
+      setMenus(nextMenus);
+      persistDemo(reservations, tableMemos, soldOutMenus, staff, nextMenus, bookings);
       return;
     }
-    const nextMenus = menus.filter((item) => item.id !== id);
     setMenus(nextMenus);
     persistDemo(reservations, tableMemos, soldOutMenus, staff, nextMenus, bookings);
   }, [bookings, menus, persistDemo, reservations, soldOutMenus, staff, tableMemos]);
@@ -1072,6 +1093,8 @@ export function useOperations(user?: User | null) {
         updated_at: normalized.updatedAt,
       });
       if (error) throw error;
+      setSettlement(normalized);
+      persistDemo(reservations, tableMemos, soldOutMenus, staff, menus, bookings, normalized);
       return;
     }
     setSettlement(normalized);

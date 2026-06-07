@@ -149,7 +149,15 @@ export default function SettingsPage() {
                           >
                             {(["staff", "manager", "admin"] as UserRole[]).map((value) => <option key={value} value={value}>{roleLabels[value]}</option>)}
                           </select>
-                          <Button variant="ghost" size="sm" onClick={() => removeStaff(member.id)}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              if (confirm("정말로 이 사용자를 삭제하시겠습니까?")) {
+                                removeStaff(member.id);
+                              }
+                            }}
+                          >
                             <Trash2 size={15} /> 삭제
                           </Button>
                         </>
@@ -184,7 +192,15 @@ export default function SettingsPage() {
                       <div className="truncate font-semibold">{menu.name}</div>
                       <div className="text-xs text-secondary">{menuCategoryLabels[menu.category]} · {menu.price.toLocaleString("ko-KR")}원</div>
                     </button>
-                    <Button variant="ghost" size="sm" onClick={() => removeMenu(menu.id)}>비활성</Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        if (confirm("정말로 이 메뉴를 비활성화하시겠습니까?")) {
+                          removeMenu(menu.id);
+                        }
+                      }}
+                    >비활성</Button>
                   </div>
                 ))}
               </div>
