@@ -19,6 +19,32 @@ function total(entries: PaymentEntry[]) {
 
 async function fileToDataUrl(file?: File | null) {
   if (!file) return undefined;
+  const source = URL.createObjectURL(file);
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const nextImage = new window.Image();
+      nextImage.onload = () => resolve(nextImage);
+      nextImage.onerror = reject;
+      nextImage.src = source;
+    });
+    const maxSize = 1280;
+    const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+    const width = Math.max(1, Math.round(image.width * scale));
+    const height = Math.max(1, Math.round(image.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("이미지를 처리할 수 없습니다.");
+    context.drawImage(image, 0, 0, width, height);
+    return canvas.toDataURL("image/jpeg", 0.74);
+  } finally {
+    URL.revokeObjectURL(source);
+  }
+}
+
+async function makePreview(file?: File | null) {
+  if (!file) return undefined;
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
@@ -31,19 +57,36 @@ function PaymentForm({ label, method, onSubmit }: { label: string; method: Payme
   const [amount, setAmount] = useState("");
   const [memo, setMemo] = useState("");
   const [receipt, setReceipt] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | undefined>();
+  const [fileInputKey, setFileInputKey] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleReceipt(file?: File | null) {
+    setReceipt(file || null);
+    setError("");
+    setPreview(await makePreview(file));
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const parsedAmount = Number(amount);
     if (!parsedAmount) return;
     setSaving(true);
-    const receiptImage = await fileToDataUrl(receipt);
-    await onSubmit(method, { amount: parsedAmount, memo: memo.trim() || undefined, receiptImage });
-    setAmount("");
-    setMemo("");
-    setReceipt(null);
-    setSaving(false);
+    setError("");
+    try {
+      const receiptImage = await fileToDataUrl(receipt);
+      await onSubmit(method, { amount: parsedAmount, memo: memo.trim() || undefined, receiptImage });
+      setAmount("");
+      setMemo("");
+      setReceipt(null);
+      setPreview(undefined);
+      setFileInputKey((value) => value + 1);
+    } catch {
+      setError("영수증 사진 저장에 실패했습니다. 사진을 다시 선택해 주세요.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -56,9 +99,11 @@ function PaymentForm({ label, method, onSubmit }: { label: string; method: Payme
         <Input inputMode="numeric" placeholder="금액" value={amount} onChange={(event) => setAmount(event.target.value.replace(/[^0-9]/g, ""))} required />
         <Input placeholder="메모 또는 영수증 번호" value={memo} onChange={(event) => setMemo(event.target.value)} />
         <label className="block rounded-lg border border-dashed border-border bg-elevated p-4 text-sm font-semibold text-secondary">
-          <span>{receipt ? receipt.name : "영수증 사진 첨부"}</span>
-          <input className="sr-only" type="file" accept="image/*" capture="environment" onChange={(event) => setReceipt(event.target.files?.[0] || null)} />
+          <span>{receipt ? `첨부됨 · ${receipt.name}` : "영수증 사진 첨부"}</span>
+          {preview ? <Image className="mt-3 h-28 w-full rounded-lg object-cover" src={preview} alt="선택한 영수증" width={320} height={112} unoptimized /> : null}
+          <input key={fileInputKey} className="sr-only" type="file" accept="image/*" capture="environment" onChange={(event) => handleReceipt(event.target.files?.[0] || null)} />
         </label>
+        {error ? <p className="text-sm font-semibold text-danger">{error}</p> : null}
         <Button className="w-full" size="lg" disabled={saving}>{saving ? "저장 중" : `${label} 저장`}</Button>
       </form>
     </Card>

@@ -18,6 +18,8 @@ const statusLabels = {
   canceled: "취소",
 };
 
+const partySizeOptions = Array.from({ length: 30 }, (_, index) => index + 1);
+
 export default function ReservationsPage() {
   const { user } = useAuthUser();
   const { reservations, addReservation, updateReservationStatus } = useOperations(user);
@@ -44,22 +46,29 @@ export default function ReservationsPage() {
       </header>
 
       <Card>
-        <form className="space-y-3" onSubmit={onSubmit}>
-          <div className="grid grid-cols-2 gap-2">
+        <form className="space-y-4" onSubmit={onSubmit}>
+          <div className="grid grid-cols-2 gap-3">
             {(["middle", "yard"] as ReservationZone[]).map((value) => (
               <button
                 type="button"
                 key={value}
                 onClick={() => setZone(value)}
-                className={cn("h-12 rounded-lg border border-border font-semibold text-secondary", zone === value && "border-accent bg-accent text-white")}
+                className={cn("h-14 rounded-lg border border-border bg-elevated font-bold text-secondary transition active:scale-[0.98]", zone === value && "border-accent bg-accent text-white shadow-soft")}
               >
                 {value === "middle" ? "미들" : "야장"}
               </button>
             ))}
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-3">
             <Input placeholder="이름" value={name} onChange={(event) => setName(event.target.value)} required />
-            <Input type="number" min={1} placeholder="인원" value={partySize} onChange={(event) => setPartySize(Number(event.target.value))} required />
+            <select
+              className="h-12 w-full rounded-lg border border-border bg-surface px-4 text-base font-semibold text-primary outline-none transition focus:border-accent"
+              value={partySize}
+              onChange={(event) => setPartySize(Number(event.target.value))}
+              required
+            >
+              {partySizeOptions.map((count) => <option key={count} value={count}>{count}명</option>)}
+            </select>
           </div>
           <Input inputMode="tel" placeholder="전화번호" value={phone} onChange={(event) => setPhone(event.target.value)} required />
           <Textarea placeholder="메모" value={memo} onChange={(event) => setMemo(event.target.value)} />

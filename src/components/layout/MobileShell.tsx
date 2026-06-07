@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
+import { OperationNotifications } from "@/components/layout/OperationNotifications";
 import { useAuthUser } from "@/lib/useInventory";
 
 export function MobileShell({ children }: { children: React.ReactNode }) {
@@ -27,6 +28,7 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
   return (
     <main className="min-h-dvh bg-background text-primary">
       <div className="mx-auto max-w-md px-4 pb-28 pt-[max(env(safe-area-inset-top),1rem)]">{children}</div>
+      <OperationNotifications />
       <BottomNavigation />
     </main>
   );

@@ -72,6 +72,18 @@ function writeJson<T>(key: string, value: T) {
   window.localStorage.setItem(key, JSON.stringify(value));
 }
 
+function emitOperationEvent(message: string, area: "재고" | "웨이팅" | "예약" | "테이블" | "정산" | "품절") {
+  if (typeof window === "undefined") return;
+  const channel = new BroadcastChannel("hall-stock-events");
+  channel.postMessage({
+    id: crypto.randomUUID(),
+    message,
+    area,
+    createdAt: new Date().toISOString(),
+  });
+  channel.close();
+}
+
 function ensureDemoStaff() {
   const current = readJson<StaffUser[]>(STAFF_KEY, []);
   if (current.length) return current;
@@ -321,6 +333,7 @@ export function useInventory(user?: User | null) {
       setItems(nextItems);
       setLogs(nextLogs);
       persistDemo(nextItems, nextLogs);
+      emitOperationEvent(`${current.name} 재고가 업데이트됐습니다.`, "재고");
     },
     [items, logs, persistDemo, user],
   );
@@ -357,10 +370,11 @@ export function useInventory(user?: User | null) {
         return;
       }
 
-      const nextItems = items.map((item) => (item.id === itemId ? nextItem : item));
-      setItems(nextItems);
-      persistDemo(nextItems);
-    },
+    const nextItems = items.map((item) => (item.id === itemId ? nextItem : item));
+    setItems(nextItems);
+    persistDemo(nextItems);
+    emitOperationEvent(`${current.name} 재고 단위가 변경됐습니다.`, "재고");
+  },
     [items, persistDemo, user],
   );
 
@@ -752,6 +766,7 @@ export function useOperations(user?: User | null) {
     const next = [...reservations, reservation].sort((a, b) => a.sortOrder - b.sortOrder);
     setReservations(next);
     persistDemo(next);
+    emitOperationEvent(`${reservation.name}님 웨이팅이 등록됐습니다.`, "웨이팅");
   }, [persistDemo, reservations, user?.name]);
 
   const updateReservationStatus = useCallback(async (id: string, status: ReservationStatus) => {
@@ -764,6 +779,7 @@ export function useOperations(user?: User | null) {
     const next = reservations.map((reservation) => (reservation.id === id ? { ...reservation, status, updatedAt: new Date().toISOString() } : reservation));
     setReservations(next);
     persistDemo(next);
+    emitOperationEvent("웨이팅 상태가 업데이트됐습니다.", "웨이팅");
   }, [persistDemo, reservations]);
 
   const saveTableMemo = useCallback(async (memo: Partial<TableMemo> & { area: TableMemo["area"]; tableNo: string; orders: TableOrderLine[] }) => {
@@ -799,6 +815,7 @@ export function useOperations(user?: User | null) {
     const next = [nextMemo, ...tableMemos.filter((row) => row.id !== nextMemo.id)];
     setTableMemos(next);
     persistDemo(reservations, next);
+    emitOperationEvent(`${nextMemo.tableNo}번 테이블 메모가 저장됐습니다.`, "테이블");
   }, [persistDemo, reservations, tableMemos, user?.name]);
 
   const addSoldOutMenu = useCallback(async (menuName: string, reason?: string) => {
@@ -829,6 +846,7 @@ export function useOperations(user?: User | null) {
     const next = [soldOut, ...soldOutMenus];
     setSoldOutMenus(next);
     persistDemo(reservations, tableMemos, next);
+    emitOperationEvent(`${soldOut.menuName} 품절이 등록됐습니다.`, "품절");
   }, [persistDemo, reservations, soldOutMenus, tableMemos, user?.name]);
 
   const resolveSoldOutMenu = useCallback(async (id: string) => {
@@ -841,6 +859,7 @@ export function useOperations(user?: User | null) {
     const next = soldOutMenus.map((menu) => (menu.id === id ? { ...menu, active: false, updatedAt: new Date().toISOString() } : menu));
     setSoldOutMenus(next);
     persistDemo(reservations, tableMemos, next);
+    emitOperationEvent("품절 메뉴가 해제됐습니다.", "품절");
   }, [persistDemo, reservations, soldOutMenus, tableMemos]);
 
   const saveMenu = useCallback(async (input: Omit<MenuItem, "id"> & { id?: string }) => {
@@ -921,6 +940,7 @@ export function useOperations(user?: User | null) {
     const nextBookings = [...bookings, booking].sort((a, b) => a.time.localeCompare(b.time));
     setBookings(nextBookings);
     persistDemo(reservations, tableMemos, soldOutMenus, staff, menus, nextBookings);
+    emitOperationEvent(`${booking.title} 금일 예약이 등록됐습니다.`, "예약");
   }, [bookings, menus, persistDemo, reservations, soldOutMenus, staff, tableMemos, user?.name]);
 
   const updateBookingStatus = useCallback(async (id: string, status: TodayBooking["status"]) => {
@@ -933,6 +953,7 @@ export function useOperations(user?: User | null) {
     const nextBookings = bookings.map((booking) => (booking.id === id ? { ...booking, status, updatedAt: new Date().toISOString() } : booking));
     setBookings(nextBookings);
     persistDemo(reservations, tableMemos, soldOutMenus, staff, menus, nextBookings);
+    emitOperationEvent("금일 예약 상태가 업데이트됐습니다.", "예약");
   }, [bookings, menus, persistDemo, reservations, soldOutMenus, staff, tableMemos]);
 
   const saveSettlement = useCallback(async (nextSettlement: DailySettlement) => {
@@ -959,6 +980,7 @@ export function useOperations(user?: User | null) {
     }
     setSettlement(normalized);
     persistDemo(reservations, tableMemos, soldOutMenus, staff, menus, bookings, normalized);
+    emitOperationEvent("일일 정산이 업데이트됐습니다.", "정산");
   }, [bookings, menus, persistDemo, reservations, soldOutMenus, staff, tableMemos, user?.name]);
 
   const updateFruitCount = useCallback(async (fruitCount: number) => {
