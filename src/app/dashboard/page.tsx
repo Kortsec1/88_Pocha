@@ -47,7 +47,7 @@ function DashboardContent() {
       <header className="mb-5 flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-secondary">{formatDate()}</p>
-          <h1 className="mt-1 whitespace-nowrap text-3xl font-black text-primary">88포차 운영판</h1>
+          <h1 className="mt-1 text-3xl font-black text-primary">88포차 운영 현황</h1>
         </div>
         <div className="rounded-full border border-accent/20 bg-surface px-3 py-1 text-sm font-black text-accent shadow-soft">1988</div>
       </header>

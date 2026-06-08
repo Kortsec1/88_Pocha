@@ -36,7 +36,7 @@ export default function BookingsPage() {
   const [tables, setTables] = useState<string[]>([]);
   const [memo, setMemo] = useState("");
 
-  const activeBookings = useMemo(() => bookings.filter((booking) => booking.status !== "canceled"), [bookings]);
+  const activeBookings = useMemo(() => bookings.filter((booking) => booking.status === "scheduled" || booking.status === "seated"), [bookings]);
 
   function toggleTable(table: string) {
     setTables((current) => current.includes(table) ? current.filter((value) => value !== table) : [...current, table]);

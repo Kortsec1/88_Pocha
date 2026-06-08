@@ -18,6 +18,7 @@ import type {
   PaymentMethod,
   Reservation,
   ReservationStatus,
+  SessionArchive,
   SoldOutMenu,
   StaffUser,
   TableMemo,
@@ -39,6 +40,7 @@ const MENUS_KEY = "hall-stock-menus";
 const BOOKINGS_KEY = "hall-stock-bookings";
 const SETTLEMENT_KEY = "hall-stock-settlement";
 const BUSINESS_SESSION_KEY = "hall-stock-business-session";
+const SESSION_ARCHIVES_KEY = "hall-stock-session-archives";
 
 const defaultUser: User = {
   id: "developer-park",
@@ -627,6 +629,24 @@ function fromDbBusinessSession(row: any): BusinessSession {
   };
 }
 
+function fromDbSessionArchive(row: any): SessionArchive {
+  return {
+    id: row.id,
+    storeId: row.store_id,
+    sessionId: row.session_id,
+    openedAt: row.opened_at,
+    openedByName: row.opened_by_name,
+    closedAt: row.closed_at,
+    closedByName: row.closed_by_name,
+    tableMemos: row.table_memos || [],
+    soldOutMenus: row.sold_out_menus || [],
+    bookings: row.bookings || [],
+    settlement: row.settlement,
+    summary: row.summary || undefined,
+    createdAt: row.created_at,
+  };
+}
+
 function ensureDemoMenus() {
   const current = readJson<MenuItem[]>(MENUS_KEY, []);
   if (current.length) return current.map(normalizeMenuItem);
@@ -644,6 +664,7 @@ export function useOperations(user?: User | null) {
   const [bookings, setBookings] = useState<TodayBooking[]>([]);
   const [settlement, setSettlement] = useState<DailySettlement>(() => createEmptySettlement());
   const [businessSession, setBusinessSession] = useState<BusinessSession | null>(null);
+  const [sessionArchives, setSessionArchives] = useState<SessionArchive[]>([]);
   const [loading, setLoading] = useState(true);
   const broadcast = useMemo(() => (typeof window !== "undefined" ? new BroadcastChannel("hall-stock-ops") : null), []);
 
@@ -657,21 +678,23 @@ export function useOperations(user?: User | null) {
     setBookings(readJson<TodayBooking[]>(BOOKINGS_KEY, []));
     setSettlement(normalizeSettlement(readJson<DailySettlement | null>(SETTLEMENT_KEY, null)));
     setBusinessSession(readJson<BusinessSession | null>(BUSINESS_SESSION_KEY, null));
+    setSessionArchives(readJson<SessionArchive[]>(SESSION_ARCHIVES_KEY, []));
     setLoading(false);
   }, []);
 
   const loadSupabase = useCallback(async () => {
     const supabase = getSupabase();
     if (!supabase) return;
-    const [{ data: staffRows }, { data: reservationRows }, { data: memoRows }, { data: soldOutRows }, { data: menuRows }, { data: bookingRows }, { data: settlementRows }, { data: sessionRows }] = await Promise.all([
+    const [{ data: staffRows }, { data: reservationRows }, { data: memoRows }, { data: soldOutRows }, { data: menuRows }, { data: bookingRows }, { data: settlementRows }, { data: sessionRows }, { data: archiveRows }] = await Promise.all([
       supabase.from("app_users").select("*").eq("store_id", STORE_ID).order("created_at"),
       supabase.from("reservations").select("*").eq("store_id", STORE_ID).order("sort_order"),
       supabase.from("table_memos").select("*").eq("store_id", STORE_ID).eq("status", "open").order("updated_at", { ascending: false }),
       supabase.from("sold_out_menus").select("*").eq("store_id", STORE_ID).eq("active", true).order("created_at", { ascending: false }),
       supabase.from("menu_items").select("*").eq("store_id", STORE_ID).eq("active", true).order("category").order("name"),
-      supabase.from("today_bookings").select("*").eq("store_id", STORE_ID).order("time"),
+      supabase.from("today_bookings").select("*").eq("store_id", STORE_ID).in("status", ["scheduled", "seated"]).order("time"),
       supabase.from("daily_settlements").select("*").eq("store_id", STORE_ID).eq("date", todayKey()).limit(1),
       supabase.from("business_sessions").select("*").eq("store_id", STORE_ID).order("opened_at", { ascending: false }).limit(1),
+      supabase.from("session_archives").select("*").eq("store_id", STORE_ID).order("closed_at", { ascending: false }).limit(30),
     ]);
     if (!staffRows?.length) {
       await supabase.from("app_users").upsert(defaultStaff.map((member) => ({
@@ -702,6 +725,7 @@ export function useOperations(user?: User | null) {
     setBookings((bookingRows || []).map(fromDbBooking));
     setSettlement(settlementRows?.length ? fromDbSettlement(settlementRows[0]) : createEmptySettlement());
     setBusinessSession(sessionRows?.length ? fromDbBusinessSession(sessionRows[0]) : null);
+    setSessionArchives((archiveRows || []).map(fromDbSessionArchive));
     setLoading(false);
   }, []);
 
@@ -733,7 +757,7 @@ export function useOperations(user?: User | null) {
     };
   }, [broadcast, loadDemo, loadSupabase]);
 
-  const persistDemo = useCallback((nextReservations = reservations, nextMemos = tableMemos, nextSoldOut = soldOutMenus, nextStaff = staff, nextMenus = menus, nextBookings = bookings, nextSettlement = settlement, nextBusinessSession = businessSession) => {
+  const persistDemo = useCallback((nextReservations = reservations, nextMemos = tableMemos, nextSoldOut = soldOutMenus, nextStaff = staff, nextMenus = menus, nextBookings = bookings, nextSettlement = settlement, nextBusinessSession = businessSession, nextSessionArchives = sessionArchives) => {
     writeJson(RESERVATIONS_KEY, nextReservations);
     writeJson(TABLE_MEMOS_KEY, nextMemos);
     writeJson(SOLD_OUT_KEY, nextSoldOut);
@@ -742,8 +766,9 @@ export function useOperations(user?: User | null) {
     writeJson(BOOKINGS_KEY, nextBookings);
     writeJson(SETTLEMENT_KEY, nextSettlement);
     writeJson(BUSINESS_SESSION_KEY, nextBusinessSession);
+    writeJson(SESSION_ARCHIVES_KEY, nextSessionArchives);
     broadcast?.postMessage("changed");
-  }, [bookings, broadcast, businessSession, menus, reservations, settlement, soldOutMenus, staff, tableMemos]);
+  }, [bookings, broadcast, businessSession, menus, reservations, sessionArchives, settlement, soldOutMenus, staff, tableMemos]);
 
   const addStaff = useCallback(async (name: string, code: string, role: StaffUser["role"] = "staff") => {
     const member: StaffUser = {
@@ -936,6 +961,27 @@ export function useOperations(user?: User | null) {
     }
     setTableMemos(next);
     persistDemo(reservations, next);
+  }, [persistDemo, reservations, tableMemos, user?.name]);
+
+  const removeTableMemo = useCallback(async (id: string) => {
+    const target = tableMemos.find((memo) => memo.id === id);
+    const next = tableMemos.filter((memo) => memo.id !== id);
+    const supabase = getSupabase();
+    if (supabase) {
+      const { error } = await supabase
+        .from("table_memos")
+        .update({ status: "closed", updated_at: new Date().toISOString(), updated_by_name: user?.name || "직원" })
+        .eq("id", id)
+        .eq("store_id", STORE_ID);
+      if (error) throw error;
+      setTableMemos(next);
+      persistDemo(reservations, next);
+      emitOperationEvent(`${target ? `${target.tableNo}번 ` : ""}테이블 메모가 삭제됐습니다.`, "테이블");
+      return;
+    }
+    setTableMemos(next);
+    persistDemo(reservations, next);
+    emitOperationEvent(`${target ? `${target.tableNo}번 ` : ""}테이블 메모가 삭제됐습니다.`, "테이블");
   }, [persistDemo, reservations, tableMemos, user?.name]);
 
   const addSoldOutMenu = useCallback(async (menuName: string, reason?: string) => {
@@ -1148,6 +1194,7 @@ export function useOperations(user?: User | null) {
 
   const openBusiness = useCallback(async () => {
     if (businessSession?.status === "open") return;
+    const emptySettlement = createEmptySettlement();
     const session: BusinessSession = {
       id: crypto.randomUUID(),
       storeId: STORE_ID,
@@ -1157,6 +1204,21 @@ export function useOperations(user?: User | null) {
     };
     const supabase = getSupabase();
     if (supabase) {
+      await Promise.all([
+        supabase.from("table_memos").update({ status: "closed", updated_at: new Date().toISOString() }).eq("store_id", STORE_ID).eq("status", "open"),
+        supabase.from("sold_out_menus").update({ active: false, updated_at: new Date().toISOString() }).eq("store_id", STORE_ID).eq("active", true),
+        supabase.from("today_bookings").update({ status: "completed", updated_at: new Date().toISOString() }).eq("store_id", STORE_ID).in("status", ["scheduled", "seated"]),
+        supabase.from("daily_settlements").upsert({
+          id: emptySettlement.id,
+          store_id: STORE_ID,
+          date: emptySettlement.date,
+          fruit_count: 0,
+          cash_entries: [],
+          transfer_entries: [],
+          updated_by_name: user?.name || "직원",
+          updated_at: emptySettlement.updatedAt,
+        }),
+      ]);
       const { data, error } = await supabase
         .from("business_sessions")
         .insert({
@@ -1173,13 +1235,21 @@ export function useOperations(user?: User | null) {
         throw error;
       }
       setBusinessSession(data ? fromDbBusinessSession(data) : session);
+      setTableMemos([]);
+      setSoldOutMenus([]);
+      setBookings([]);
+      setSettlement(emptySettlement);
       emitOperationEvent("영업 오픈 처리가 완료됐습니다.", "운영");
       return;
     }
+    setTableMemos([]);
+    setSoldOutMenus([]);
+    setBookings([]);
+    setSettlement(emptySettlement);
     setBusinessSession(session);
-    persistDemo(reservations, tableMemos, soldOutMenus, staff, menus, bookings, settlement, session);
+    persistDemo(reservations, [], [], staff, menus, [], emptySettlement, session);
     emitOperationEvent("영업 오픈 처리가 완료됐습니다.", "운영");
-  }, [bookings, businessSession?.status, menus, persistDemo, reservations, settlement, soldOutMenus, staff, tableMemos, user?.name]);
+  }, [businessSession?.status, menus, persistDemo, reservations, staff, user?.name]);
 
   const closeBusiness = useCallback(async (summary: NonNullable<BusinessSession["closeSummary"]>) => {
     if (!businessSession || businessSession.status !== "open") return;
@@ -1190,6 +1260,23 @@ export function useOperations(user?: User | null) {
       closedByName: user?.name || "직원",
       closeSummary: summary,
     };
+    const archive: SessionArchive = {
+      id: crypto.randomUUID(),
+      storeId: STORE_ID,
+      sessionId: businessSession.id,
+      openedAt: businessSession.openedAt,
+      openedByName: businessSession.openedByName,
+      closedAt: closed.closedAt || new Date().toISOString(),
+      closedByName: closed.closedByName || "직원",
+      tableMemos,
+      soldOutMenus: soldOutMenus.filter((menu) => menu.active),
+      bookings,
+      settlement,
+      summary,
+      createdAt: new Date().toISOString(),
+    };
+    const emptySettlement = createEmptySettlement();
+    const nextArchives = [archive, ...sessionArchives].slice(0, 30);
     const supabase = getSupabase();
     if (supabase) {
       const { data, error } = await supabase
@@ -1207,14 +1294,54 @@ export function useOperations(user?: User | null) {
         console.error("closeBusiness failed", error);
         throw error;
       }
+      const { error: archiveError } = await supabase.from("session_archives").insert({
+        id: archive.id,
+        store_id: archive.storeId,
+        session_id: archive.sessionId,
+        opened_at: archive.openedAt,
+        opened_by_name: archive.openedByName,
+        closed_at: archive.closedAt,
+        closed_by_name: archive.closedByName,
+        table_memos: archive.tableMemos,
+        sold_out_menus: archive.soldOutMenus,
+        bookings: archive.bookings,
+        settlement: archive.settlement,
+        summary: archive.summary || null,
+      });
+      if (archiveError) console.warn("session archive save failed", archiveError);
+      await Promise.all([
+        supabase.from("table_memos").update({ status: "closed", updated_at: new Date().toISOString() }).eq("store_id", STORE_ID).eq("status", "open"),
+        supabase.from("sold_out_menus").update({ active: false, updated_at: new Date().toISOString() }).eq("store_id", STORE_ID).eq("active", true),
+        supabase.from("today_bookings").update({ status: "completed", updated_at: new Date().toISOString() }).eq("store_id", STORE_ID).in("status", ["scheduled", "seated"]),
+        supabase.from("daily_settlements").upsert({
+          id: emptySettlement.id,
+          store_id: STORE_ID,
+          date: emptySettlement.date,
+          fruit_count: 0,
+          cash_entries: [],
+          transfer_entries: [],
+          updated_by_name: user?.name || "직원",
+          updated_at: emptySettlement.updatedAt,
+        }),
+      ]);
       setBusinessSession(data ? fromDbBusinessSession(data) : closed);
+      setSessionArchives(nextArchives);
+      setTableMemos([]);
+      setSoldOutMenus([]);
+      setBookings([]);
+      setSettlement(emptySettlement);
       emitOperationEvent("영업 마감 처리가 완료됐습니다.", "운영");
       return;
     }
     setBusinessSession(closed);
-    persistDemo(reservations, tableMemos, soldOutMenus, staff, menus, bookings, settlement, closed);
+    setSessionArchives(nextArchives);
+    setTableMemos([]);
+    setSoldOutMenus([]);
+    setBookings([]);
+    setSettlement(emptySettlement);
+    persistDemo(reservations, [], [], staff, menus, [], emptySettlement, closed, nextArchives);
     emitOperationEvent("영업 마감 처리가 완료됐습니다.", "운영");
-  }, [bookings, businessSession, menus, persistDemo, reservations, settlement, soldOutMenus, staff, tableMemos, user?.name]);
+  }, [bookings, businessSession, menus, persistDemo, reservations, sessionArchives, settlement, soldOutMenus, staff, tableMemos, user?.name]);
 
   return {
     staff,
@@ -1225,6 +1352,7 @@ export function useOperations(user?: User | null) {
     bookings,
     settlement,
     businessSession,
+    sessionArchives,
     loading,
     addStaff,
     removeStaff,
@@ -1232,6 +1360,7 @@ export function useOperations(user?: User | null) {
     addReservation,
     updateReservationStatus,
     saveTableMemo,
+    removeTableMemo,
     addSoldOutMenu,
     resolveSoldOutMenu,
     saveMenu,

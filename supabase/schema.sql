@@ -164,6 +164,22 @@ create table if not exists public.business_sessions (
   close_summary jsonb
 );
 
+create table if not exists public.session_archives (
+  id uuid primary key default gen_random_uuid(),
+  store_id text not null references public.stores(id) on delete cascade,
+  session_id uuid not null references public.business_sessions(id) on delete cascade,
+  opened_at timestamptz not null,
+  opened_by_name text not null default '직원',
+  closed_at timestamptz not null,
+  closed_by_name text not null default '직원',
+  table_memos jsonb not null default '[]'::jsonb,
+  sold_out_menus jsonb not null default '[]'::jsonb,
+  bookings jsonb not null default '[]'::jsonb,
+  settlement jsonb not null,
+  summary jsonb,
+  created_at timestamptz not null default now()
+);
+
 alter table public.stores enable row level security;
 alter table public.profiles enable row level security;
 alter table public.items enable row level security;
@@ -178,6 +194,7 @@ alter table public.today_bookings enable row level security;
 alter table public.daily_settlements enable row level security;
 alter table public.push_subscriptions enable row level security;
 alter table public.business_sessions enable row level security;
+alter table public.session_archives enable row level security;
 
 drop policy if exists "authenticated can read stores" on public.stores;
 create policy "authenticated can read stores"
@@ -352,6 +369,13 @@ to anon
 using (true)
 with check (true);
 
+drop policy if exists "anon can manage session archives" on public.session_archives;
+create policy "anon can manage session archives"
+on public.session_archives for all
+to anon
+using (true)
+with check (true);
+
 create or replace function public.login_with_staff_code(p_store_id text, p_code text)
 returns table (
   id text,
@@ -500,5 +524,11 @@ end $$;
 do $$
 begin
   alter publication supabase_realtime add table public.business_sessions;
+exception when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.session_archives;
 exception when duplicate_object then null;
 end $$;

@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-import { Minus, Plus, Save } from "lucide-react";
+import { Minus, Plus, Save, Trash2 } from "lucide-react";
 import { MobileShell } from "@/components/layout/MobileShell";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -21,7 +21,7 @@ function formatPrice(value: number) {
 
 export default function TablesPage() {
   const { user } = useAuthUser();
-  const { tableMemos, saveTableMemo, menus } = useOperations(user);
+  const { tableMemos, saveTableMemo, removeTableMemo, menus } = useOperations(user);
   const [area, setArea] = useState<TableArea>("indoor");
   const [tableNo, setTableNo] = useState("1");
   const [customTableNo, setCustomTableNo] = useState("");
@@ -228,9 +228,24 @@ export default function TablesPage() {
         <h2 className="text-lg font-semibold">열려 있는 메모</h2>
         {tableMemos.length ? tableMemos.map((memo) => (
           <Card key={memo.id}>
-            <div className="mb-2 flex items-center justify-between">
-              <h3 className="text-lg font-bold">{tableAreas[memo.area].label} {memo.tableNo}</h3>
-              <span className="text-xs text-secondary">{formatTime(memo.updatedAt)}</span>
+            <div className="mb-2 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="truncate text-lg font-bold">{tableAreas[memo.area].label} {memo.tableNo}</h3>
+                <span className="text-xs text-secondary">{formatTime(memo.updatedAt)} · {memo.updatedByName}</span>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="shrink-0 text-danger"
+                onClick={() => {
+                  if (confirm("이 테이블 메모를 삭제할까요?")) {
+                    removeTableMemo(memo.id);
+                  }
+                }}
+              >
+                <Trash2 size={15} /> 삭제
+              </Button>
             </div>
             <div className="space-y-1">
               {memo.orders.map((order) => (

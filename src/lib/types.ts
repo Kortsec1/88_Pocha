@@ -193,3 +193,19 @@ export type BusinessSession = {
     memo?: string;
   };
 };
+
+export type SessionArchive = {
+  id: string;
+  storeId: string;
+  sessionId: string;
+  openedAt: string;
+  openedByName: string;
+  closedAt: string;
+  closedByName: string;
+  tableMemos: TableMemo[];
+  soldOutMenus: SoldOutMenu[];
+  bookings: TodayBooking[];
+  settlement: DailySettlement;
+  summary?: BusinessSession["closeSummary"];
+  createdAt: string;
+};

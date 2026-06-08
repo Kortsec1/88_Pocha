@@ -29,7 +29,7 @@ const roleDescriptions: Record<UserRole, string> = {
 export default function SettingsPage() {
   const { user, signOut, demoMode } = useAuthUser();
   const { closings } = useInventory(user);
-  const { staff, addStaff, removeStaff, updateStaffRole, menus, saveMenu, removeMenu } = useOperations(user);
+  const { staff, addStaff, removeStaff, updateStaffRole, menus, saveMenu, removeMenu, sessionArchives } = useOperations(user);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [role, setRole] = useState<UserRole>("staff");
@@ -60,6 +60,7 @@ export default function SettingsPage() {
   }
 
   const activeStaff = staff.filter((member) => member.active);
+  const visibleArchives = user?.role === "developer" ? sessionArchives : [];
 
   useEffect(() => {
     function onPushStatus(event: Event) {
@@ -217,6 +218,71 @@ export default function SettingsPage() {
           <div className="text-sm text-secondary">마감 저장 건수</div>
           <div className="mt-1 text-3xl font-bold tabular-nums">{closings.length}</div>
         </Card>
+        {user?.role === "developer" ? (
+          <Card>
+            <div className="mb-3 flex items-center gap-2 font-semibold">
+              <History size={18} /> 회차 기록
+            </div>
+            {visibleArchives.length ? (
+              <div className="space-y-3">
+                {visibleArchives.map((archive) => {
+                  const archivedSettlement = archive.settlement || { fruitCount: 0, cashEntries: [], transferEntries: [] };
+                  const cashTotal = archivedSettlement.cashEntries.reduce((sum, entry) => sum + entry.amount, 0);
+                  const transferTotal = archivedSettlement.transferEntries.reduce((sum, entry) => sum + entry.amount, 0);
+                  return (
+                    <details key={archive.id} className="rounded-lg border border-border bg-background/60 p-3">
+                      <summary className="cursor-pointer list-none">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="truncate font-bold">
+                              {new Date(archive.openedAt).toLocaleDateString("ko-KR")} 회차
+                            </div>
+                            <div className="mt-1 text-xs leading-5 text-secondary">
+                              오픈 {new Date(archive.openedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
+                              {" · "}
+                              마감 {new Date(archive.closedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
+                            </div>
+                          </div>
+                          <div className="shrink-0 text-right text-xs text-secondary">
+                            <div>{archive.closedByName}</div>
+                            <div className="font-mono">{(cashTotal + transferTotal).toLocaleString("ko-KR")}원</div>
+                          </div>
+                        </div>
+                      </summary>
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                        <div className="rounded-lg bg-surface p-2">
+                          <div className="text-xs text-secondary">테이블 메모</div>
+                          <div className="font-bold">{archive.tableMemos.length}건</div>
+                        </div>
+                        <div className="rounded-lg bg-surface p-2">
+                          <div className="text-xs text-secondary">금일 예약</div>
+                          <div className="font-bold">{archive.bookings.length}건</div>
+                        </div>
+                        <div className="rounded-lg bg-surface p-2">
+                          <div className="text-xs text-secondary">품절 메뉴</div>
+                          <div className="font-bold">{archive.soldOutMenus.length}건</div>
+                        </div>
+                        <div className="rounded-lg bg-surface p-2">
+                          <div className="text-xs text-secondary">모듬과일</div>
+                          <div className="font-bold">{archivedSettlement.fruitCount}개</div>
+                        </div>
+                        <div className="col-span-2 rounded-lg bg-surface p-2">
+                          <div className="text-xs text-secondary">정산</div>
+                          <div className="mt-1 font-bold">
+                            현금 {cashTotal.toLocaleString("ko-KR")}원 · 계좌 {transferTotal.toLocaleString("ko-KR")}원
+                          </div>
+                        </div>
+                      </div>
+                      {archive.summary?.memo ? <p className="mt-3 text-sm text-secondary">{archive.summary.memo}</p> : null}
+                    </details>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm leading-6 text-secondary">아직 저장된 회차 기록이 없습니다. 마감 처리를 완료하면 현재 운영 데이터가 이곳에 보관됩니다.</p>
+            )}
+          </Card>
+        ) : null}
         <Link href="/history">
           <Button variant="secondary" className="w-full" size="lg">
             <History size={18} /> 변경 이력 보기
