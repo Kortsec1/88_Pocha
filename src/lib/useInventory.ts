@@ -74,7 +74,7 @@ function writeJson<T>(key: string, value: T) {
   window.localStorage.setItem(key, JSON.stringify(value));
 }
 
-function emitOperationEvent(message: string, area: "재고" | "웨이팅" | "예약" | "테이블" | "정산" | "품절" | "운영") {
+function emitOperationEvent(message: string, area: "재고" | "웨이팅" | "예약" | "테이블" | "정산" | "품절" | "운영" | "설정") {
   if (typeof window === "undefined") return;
   const channel = new BroadcastChannel("hall-stock-events");
   const payload = {
@@ -91,6 +91,14 @@ function emitOperationEvent(message: string, area: "재고" | "웨이팅" | "예
     createdAt: payload.createdAt,
   });
   channel.close();
+  window.dispatchEvent(new CustomEvent("hall-stock-operation-event", {
+    detail: {
+      id: payload.id,
+      message: payload.message,
+      area: payload.area,
+      createdAt: payload.createdAt,
+    },
+  }));
   fetch("/api/push/notify", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -762,10 +770,12 @@ export function useOperations(user?: User | null) {
       if (error) throw error;
       setStaff(nextStaff);
       persistDemo(reservations, tableMemos, soldOutMenus, nextStaff);
+      emitOperationEvent(`${member.name}님 계정이 추가됐습니다.`, "설정");
       return;
     }
     setStaff(nextStaff);
     persistDemo(reservations, tableMemos, soldOutMenus, nextStaff);
+    emitOperationEvent(`${member.name}님 계정이 추가됐습니다.`, "설정");
   }, [persistDemo, reservations, soldOutMenus, staff, tableMemos]);
 
   const removeStaff = useCallback(async (id: string) => {
@@ -784,10 +794,12 @@ export function useOperations(user?: User | null) {
       if (error) throw error;
       setStaff(nextStaff);
       persistDemo(reservations, tableMemos, soldOutMenus, nextStaff);
+      emitOperationEvent(`${target.name}님 계정이 비활성화됐습니다.`, "설정");
       return;
     }
     setStaff(nextStaff);
     persistDemo(reservations, tableMemos, soldOutMenus, nextStaff);
+    emitOperationEvent(`${target.name}님 계정이 비활성화됐습니다.`, "설정");
   }, [persistDemo, reservations, soldOutMenus, staff, tableMemos, user?.id]);
 
   const updateStaffRole = useCallback(async (id: string, role: StaffUser["role"]) => {
@@ -806,10 +818,12 @@ export function useOperations(user?: User | null) {
       if (error) throw error;
       setStaff(nextStaff);
       persistDemo(reservations, tableMemos, soldOutMenus, nextStaff);
+      emitOperationEvent(`${target.name}님 권한이 변경됐습니다.`, "설정");
       return;
     }
     setStaff(nextStaff);
     persistDemo(reservations, tableMemos, soldOutMenus, nextStaff);
+    emitOperationEvent(`${target.name}님 권한이 변경됐습니다.`, "설정");
   }, [persistDemo, reservations, soldOutMenus, staff, tableMemos, user?.id]);
 
   const addReservation = useCallback(async (input: Pick<Reservation, "zone" | "name" | "partySize" | "phone" | "memo">) => {
@@ -998,13 +1012,16 @@ export function useOperations(user?: User | null) {
       if (error) throw error;
       setMenus(nextMenus);
       persistDemo(reservations, tableMemos, soldOutMenus, staff, nextMenus, bookings);
+      emitOperationEvent(`${menu.name} 메뉴가 저장됐습니다.`, "설정");
       return;
     }
     setMenus(nextMenus);
     persistDemo(reservations, tableMemos, soldOutMenus, staff, nextMenus, bookings);
+    emitOperationEvent(`${menu.name} 메뉴가 저장됐습니다.`, "설정");
   }, [bookings, menus, persistDemo, reservations, soldOutMenus, staff, tableMemos]);
 
   const removeMenu = useCallback(async (id: string) => {
+    const target = menus.find((item) => item.id === id);
     const nextMenus = menus.filter((item) => item.id !== id);
     const supabase = getSupabase();
     if (supabase) {
@@ -1012,10 +1029,12 @@ export function useOperations(user?: User | null) {
       if (error) throw error;
       setMenus(nextMenus);
       persistDemo(reservations, tableMemos, soldOutMenus, staff, nextMenus, bookings);
+      if (target) emitOperationEvent(`${target.name} 메뉴가 비활성화됐습니다.`, "설정");
       return;
     }
     setMenus(nextMenus);
     persistDemo(reservations, tableMemos, soldOutMenus, staff, nextMenus, bookings);
+    if (target) emitOperationEvent(`${target.name} 메뉴가 비활성화됐습니다.`, "설정");
   }, [bookings, menus, persistDemo, reservations, soldOutMenus, staff, tableMemos]);
 
   const addBooking = useCallback(async (input: Pick<TodayBooking, "title" | "partySize" | "menu" | "time" | "tables" | "memo">) => {

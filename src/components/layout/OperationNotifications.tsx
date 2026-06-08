@@ -20,6 +20,7 @@ export type PushStatus = {
 };
 
 const PUSH_STATUS_EVENT = "hall-stock-push-status";
+const OPERATION_EVENT = "hall-stock-operation-event";
 
 function notifySystem(title: string, body: string) {
   if (typeof window === "undefined" || !("Notification" in window)) return;
@@ -128,7 +129,7 @@ export function OperationNotifications() {
         ...current,
         permission: Notification.permission,
         supported: true,
-        message: Notification.permission === "granted" ? "알림 권한이 허용됐습니다." : "알림 권한을 허용해 주세요.",
+        message: Notification.permission === "granted" ? "알림 연결 상태를 확인 중입니다." : "알림 권한을 허용해 주세요.",
       }));
     }
   }, []);
@@ -146,6 +147,16 @@ export function OperationNotifications() {
       showNotice(data);
     });
     return () => channel.close();
+  }, [showNotice]);
+
+  useEffect(() => {
+    function handleLocalOperation(event: Event) {
+      const data = (event as CustomEvent<Notice>).detail;
+      if (!data?.message) return;
+      showNotice(data);
+    }
+    window.addEventListener(OPERATION_EVENT, handleLocalOperation);
+    return () => window.removeEventListener(OPERATION_EVENT, handleLocalOperation);
   }, [showNotice]);
 
   useEffect(() => {
@@ -186,13 +197,22 @@ export function OperationNotifications() {
       ...current,
       permission: next,
       supported: next !== "unsupported",
-      message: next === "granted" ? "알림 권한이 허용됐습니다." : "알림 권한을 허용해 주세요.",
+      message: next === "granted" ? "알림 연결 상태를 확인 중입니다." : "알림 권한을 허용해 주세요.",
     }));
     if (next === "granted") {
       const status = await registerPushSubscription(user?.id, true);
       setPushStatus(status);
     }
   }
+
+  const showPushReconnectBanner =
+    pushStatus.permission === "granted" &&
+    !pushStatus.ready &&
+    (
+      pushStatus.message.includes("실패") ||
+      pushStatus.message.includes("지원하지") ||
+      pushStatus.message.includes("설정되지")
+    );
 
   return (
     <>
@@ -205,7 +225,7 @@ export function OperationNotifications() {
           앱 알림 켜기
         </button>
       ) : null}
-      {pushStatus.permission === "granted" && !pushStatus.ready ? (
+      {showPushReconnectBanner ? (
         <div className="fixed left-4 right-4 top-[calc(env(safe-area-inset-top)+3.5rem)] z-[60] mx-auto max-w-md rounded-xl border border-border bg-yellow-50 p-3 text-sm text-yellow-900 shadow-soft">
           <div className="flex items-center justify-between gap-3">
             <div>{pushStatus.message}</div>
