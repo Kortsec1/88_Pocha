@@ -1,11 +1,16 @@
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="512" height="512" rx="112" fill="#FFFFFF"/>
-  <circle cx="256" cy="188" r="116" fill="#C9151E"/>
-  <circle cx="256" cy="188" r="80" fill="#FFFFFF"/>
-  <circle cx="256" cy="188" r="105" stroke="#FFFFFF" stroke-width="8" stroke-dasharray="10 9"/>
-  <text x="256" y="208" text-anchor="middle" font-family="Arial, sans-serif" font-size="56" font-weight="900" fill="#C9151E">1988</text>
-  <text x="118" y="188" font-family="Arial, sans-serif" font-size="22" font-weight="800" fill="#FFFFFF">SOJU</text>
-  <text x="378" y="188" text-anchor="end" font-family="Arial, sans-serif" font-size="22" font-weight="800" fill="#FFFFFF">BEER</text>
-  <text x="256" y="352" text-anchor="middle" font-family="Arial, sans-serif" font-size="74" font-weight="900" fill="#15803D">88</text>
-  <text x="256" y="414" text-anchor="middle" font-family="Arial, sans-serif" font-size="56" font-weight="900" fill="#C9151E">포장마차</text>
+  <rect width="512" height="512" rx="96" fill="#FFFFFF"/>
+  <g transform="translate(0 4)">
+    <circle cx="256" cy="132" r="95" fill="#B9141D"/>
+    <circle cx="256" cy="132" r="58" fill="#FFFFFF"/>
+    <circle cx="256" cy="132" r="80" stroke="#FFFFFF" stroke-width="5" stroke-dasharray="9 8"/>
+    <text x="256" y="151" text-anchor="middle" font-family="Arial, Apple SD Gothic Neo, sans-serif" font-size="44" font-weight="900" fill="#C9151E">1988</text>
+    <text x="119" y="139" font-family="Arial, Apple SD Gothic Neo, sans-serif" font-size="17" font-weight="900" fill="#FFFFFF">SOJU</text>
+    <text x="393" y="139" text-anchor="end" font-family="Arial, Apple SD Gothic Neo, sans-serif" font-size="17" font-weight="900" fill="#FFFFFF">BEER</text>
+    <text x="256" y="74" text-anchor="middle" font-family="Arial, Apple SD Gothic Neo, sans-serif" font-size="23" font-weight="900" fill="#FFFFFF">레트로장마차</text>
+    <text x="256" y="211" text-anchor="middle" font-family="Arial, Apple SD Gothic Neo, sans-serif" font-size="22" font-weight="900" fill="#FFFFFF">맛있게 취하자</text>
+  </g>
+  <text x="166" y="345" text-anchor="middle" font-family="Arial, Apple SD Gothic Neo, sans-serif" font-size="86" font-weight="900" fill="#168C39">88</text>
+  <text x="324" y="345" text-anchor="middle" font-family="Arial, Apple SD Gothic Neo, sans-serif" font-size="72" font-weight="900" fill="#C9151E">포장마차</text>
+  <text x="256" y="408" text-anchor="middle" font-family="Arial, Apple SD Gothic Neo, sans-serif" font-size="38" font-weight="900" fill="#168C39">SINCE 1988</text>
 </svg>

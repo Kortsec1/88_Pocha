@@ -1,5 +1,5 @@
-const CACHE_NAME = "hall-stock-v2";
-const APP_SHELL = ["/", "/dashboard", "/items", "/closing", "/history", "/settings", "/manifest.json", "/icon.svg"];
+const CACHE_NAME = "hall-stock-v3";
+const APP_SHELL = ["/", "/dashboard", "/items", "/closing", "/history", "/settings", "/manifest.json", "/icon.svg", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
@@ -32,8 +32,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title || "88포차 업데이트", {
       body: data.body || "운영 정보가 업데이트됐습니다.",
-      icon: "/icon.svg",
-      badge: "/icon.svg",
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
       data: { url: data.url || "/dashboard" },
     }),
   );

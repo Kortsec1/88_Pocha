@@ -3,17 +3,21 @@ import { PwaRegister } from "@/components/layout/PwaRegister";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "홀스톡",
-  description: "홀 마감과 실시간 부족 품목 공유를 위한 모바일 재고 관리 PWA",
+  title: "88포차 운영",
+  description: "88포차 매장 운영을 위한 모바일 관리 PWA",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    title: "홀스톡",
+    title: "88포차",
     statusBarStyle: "black-translucent",
   },
   icons: {
-    icon: "/icon.svg",
-    apple: "/apple-touch-icon.svg",
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/apple-touch-icon.png",
   },
 };
 

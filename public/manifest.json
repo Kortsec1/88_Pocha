@@ -1,7 +1,7 @@
 {
-  "name": "홀스톡",
-  "short_name": "홀스톡",
-  "description": "홀 마감과 실시간 부족 품목 공유를 위한 모바일 재고 관리 앱",
+  "name": "88포차 운영",
+  "short_name": "88포차",
+  "description": "88포차 매장 운영을 위한 모바일 관리 앱",
   "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
@@ -10,15 +10,27 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/apple-touch-icon.svg",
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
       "sizes": "180x180",
-      "type": "image/svg+xml"
+      "type": "image/png"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ]
 }
