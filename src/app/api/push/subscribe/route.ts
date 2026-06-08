@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { normalizeNotificationPreferences } from "@/lib/notificationPreferences";
 
 function getClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -21,6 +22,7 @@ export async function POST(request: Request) {
     store_id: body.storeId || "demo-store",
     user_id: body.userId || null,
     subscription,
+    preferences: normalizeNotificationPreferences(body.preferences),
     active: true,
     updated_at: new Date().toISOString(),
   }, { onConflict: "endpoint" });

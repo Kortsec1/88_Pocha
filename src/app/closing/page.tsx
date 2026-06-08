@@ -7,6 +7,7 @@ import { MobileShell } from "@/components/layout/MobileShell";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Textarea } from "@/components/ui/Textarea";
+import { can } from "@/lib/permissions";
 import { categoryLabels, categoryOrder } from "@/lib/seed";
 import { useAuthUser, useInventory, useOperations } from "@/lib/useInventory";
 import { cn, formatDate } from "@/lib/utils";
@@ -21,10 +22,11 @@ export default function ClosingPage() {
   const cashTotal = settlement.cashEntries.reduce((sum, entry) => sum + entry.amount, 0);
   const transferTotal = settlement.transferEntries.reduce((sum, entry) => sum + entry.amount, 0);
   const isOpen = businessSession?.status === "open";
+  const canManageBusiness = can(user, "manageBusinessSession");
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!isOpen) return;
+    if (!isOpen || !canManageBusiness) return;
     const confirmed = confirm(`마감 처리할까요?\n\n재고 확인 ${checkedCount}/${items.length}\n현금 ${cashTotal.toLocaleString("ko-KR")}원\n계좌 ${transferTotal.toLocaleString("ko-KR")}원\n모듬과일 ${settlement.fruitCount}개`);
     if (!confirmed) return;
     await completeClosing(memo.trim() || undefined);
@@ -46,6 +48,12 @@ export default function ClosingPage() {
         <p className="text-sm text-secondary">{formatDate()}</p>
         <h1 className="mt-1 text-3xl font-bold">마감 체크</h1>
       </header>
+      {!canManageBusiness ? (
+        <Card className="mb-4">
+          <div className="text-lg font-bold">마감 권한이 필요합니다.</div>
+          <p className="mt-2 text-sm leading-6 text-secondary">영업 오픈/마감 처리는 매니저 이상 권한에서 사용할 수 있습니다.</p>
+        </Card>
+      ) : null}
       <Card className={cn("mb-4 border-accent/20", isOpen ? "bg-accent text-white" : "bg-elevated")}>
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -125,7 +133,7 @@ export default function ClosingPage() {
       <form className="mt-6 space-y-4" onSubmit={onSubmit}>
         <Textarea value={memo} onChange={(event) => setMemo(event.target.value)} placeholder="마감 메모" />
         {done ? <p className="rounded-lg border border-success/40 bg-success/10 p-3 text-sm text-success">영업 마감 처리가 저장됐습니다.</p> : null}
-        <Button className="w-full" size="lg" disabled={!isOpen}>
+        <Button className="w-full" size="lg" disabled={!isOpen || !canManageBusiness}>
           영업 마감 완료
         </Button>
       </form>

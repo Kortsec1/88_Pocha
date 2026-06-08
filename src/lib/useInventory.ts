@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { developerCode, initialMenuItems } from "@/lib/menu";
+import { assertCan } from "@/lib/permissions";
 import { createSeedItems, STORE_ID } from "@/lib/seed";
 import { getStatus } from "@/lib/status";
 import { getSupabase, hasSupabaseEnv } from "@/lib/supabase";
@@ -771,6 +772,7 @@ export function useOperations(user?: User | null) {
   }, [bookings, broadcast, businessSession, menus, reservations, sessionArchives, settlement, soldOutMenus, staff, tableMemos]);
 
   const addStaff = useCallback(async (name: string, code: string, role: StaffUser["role"] = "staff") => {
+    assertCan(user, "manageUsers");
     const member: StaffUser = {
       id: crypto.randomUUID(),
       storeId: STORE_ID,
@@ -801,9 +803,10 @@ export function useOperations(user?: User | null) {
     setStaff(nextStaff);
     persistDemo(reservations, tableMemos, soldOutMenus, nextStaff);
     emitOperationEvent(`${member.name}님 계정이 추가됐습니다.`, "설정");
-  }, [persistDemo, reservations, soldOutMenus, staff, tableMemos]);
+  }, [persistDemo, reservations, soldOutMenus, staff, tableMemos, user]);
 
   const removeStaff = useCallback(async (id: string) => {
+    assertCan(user, "manageRoles");
     if (id === user?.id) return;
     const target = staff.find((member) => member.id === id);
     if (!target || target.role === "developer") return;
@@ -825,9 +828,10 @@ export function useOperations(user?: User | null) {
     setStaff(nextStaff);
     persistDemo(reservations, tableMemos, soldOutMenus, nextStaff);
     emitOperationEvent(`${target.name}님 계정이 비활성화됐습니다.`, "설정");
-  }, [persistDemo, reservations, soldOutMenus, staff, tableMemos, user?.id]);
+  }, [persistDemo, reservations, soldOutMenus, staff, tableMemos, user]);
 
   const updateStaffRole = useCallback(async (id: string, role: StaffUser["role"]) => {
+    assertCan(user, "manageRoles");
     if (id === user?.id || role === "developer") return;
     const target = staff.find((member) => member.id === id);
     if (!target || target.role === "developer") return;
@@ -849,7 +853,7 @@ export function useOperations(user?: User | null) {
     setStaff(nextStaff);
     persistDemo(reservations, tableMemos, soldOutMenus, nextStaff);
     emitOperationEvent(`${target.name}님 권한이 변경됐습니다.`, "설정");
-  }, [persistDemo, reservations, soldOutMenus, staff, tableMemos, user?.id]);
+  }, [persistDemo, reservations, soldOutMenus, staff, tableMemos, user]);
 
   const addReservation = useCallback(async (input: Pick<Reservation, "zone" | "name" | "partySize" | "phone" | "memo">) => {
     const now = new Date().toISOString();
@@ -1033,6 +1037,7 @@ export function useOperations(user?: User | null) {
   }, [persistDemo, reservations, soldOutMenus, tableMemos]);
 
   const saveMenu = useCallback(async (input: Omit<MenuItem, "id"> & { id?: string }) => {
+    assertCan(user, "manageMenus");
     const now = new Date().toISOString();
     const menu: MenuItem = {
       id: input.id || crypto.randomUUID(),
@@ -1064,9 +1069,10 @@ export function useOperations(user?: User | null) {
     setMenus(nextMenus);
     persistDemo(reservations, tableMemos, soldOutMenus, staff, nextMenus, bookings);
     emitOperationEvent(`${menu.name} 메뉴가 저장됐습니다.`, "설정");
-  }, [bookings, menus, persistDemo, reservations, soldOutMenus, staff, tableMemos]);
+  }, [bookings, menus, persistDemo, reservations, soldOutMenus, staff, tableMemos, user]);
 
   const removeMenu = useCallback(async (id: string) => {
+    assertCan(user, "manageMenus");
     const target = menus.find((item) => item.id === id);
     const nextMenus = menus.filter((item) => item.id !== id);
     const supabase = getSupabase();
@@ -1081,7 +1087,7 @@ export function useOperations(user?: User | null) {
     setMenus(nextMenus);
     persistDemo(reservations, tableMemos, soldOutMenus, staff, nextMenus, bookings);
     if (target) emitOperationEvent(`${target.name} 메뉴가 비활성화됐습니다.`, "설정");
-  }, [bookings, menus, persistDemo, reservations, soldOutMenus, staff, tableMemos]);
+  }, [bookings, menus, persistDemo, reservations, soldOutMenus, staff, tableMemos, user]);
 
   const addBooking = useCallback(async (input: Pick<TodayBooking, "title" | "partySize" | "menu" | "time" | "tables" | "memo">) => {
     const now = new Date().toISOString();
@@ -1122,7 +1128,7 @@ export function useOperations(user?: User | null) {
     setBookings(nextBookings);
     persistDemo(reservations, tableMemos, soldOutMenus, staff, menus, nextBookings);
     emitOperationEvent(`${booking.title} 금일 예약이 등록됐습니다.`, "예약");
-  }, [bookings, menus, persistDemo, reservations, soldOutMenus, staff, tableMemos, user?.name]);
+  }, [bookings, menus, persistDemo, reservations, soldOutMenus, staff, tableMemos, user]);
 
   const updateBookingStatus = useCallback(async (id: string, status: TodayBooking["status"]) => {
     const nextBookings = bookings.map((booking) => (booking.id === id ? { ...booking, status, updatedAt: new Date().toISOString() } : booking));
@@ -1139,6 +1145,7 @@ export function useOperations(user?: User | null) {
   }, [bookings, menus, persistDemo, reservations, soldOutMenus, staff, tableMemos]);
 
   const saveSettlement = useCallback(async (nextSettlement: DailySettlement) => {
+    assertCan(user, "manageSettlement");
     const normalized: DailySettlement = {
       ...nextSettlement,
       fruitCount: Math.max(0, Math.round(nextSettlement.fruitCount)),
@@ -1164,7 +1171,7 @@ export function useOperations(user?: User | null) {
     }
     setSettlement(normalized);
     persistDemo(reservations, tableMemos, soldOutMenus, staff, menus, bookings, normalized);
-  }, [bookings, menus, persistDemo, reservations, soldOutMenus, staff, tableMemos, user?.name]);
+  }, [bookings, menus, persistDemo, reservations, soldOutMenus, staff, tableMemos, user]);
 
   const updateFruitCount = useCallback(async (fruitCount: number) => {
     await saveSettlement({ ...settlement, fruitCount });
@@ -1193,6 +1200,7 @@ export function useOperations(user?: User | null) {
   }, [saveSettlement, settlement]);
 
   const openBusiness = useCallback(async () => {
+    assertCan(user, "manageBusinessSession");
     if (businessSession?.status === "open") return;
     const emptySettlement = createEmptySettlement();
     const session: BusinessSession = {
@@ -1252,6 +1260,7 @@ export function useOperations(user?: User | null) {
   }, [businessSession?.status, menus, persistDemo, reservations, staff, user?.name]);
 
   const closeBusiness = useCallback(async (summary: NonNullable<BusinessSession["closeSummary"]>) => {
+    assertCan(user, "manageBusinessSession");
     if (!businessSession || businessSession.status !== "open") return;
     const closed: BusinessSession = {
       ...businessSession,

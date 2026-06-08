@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSupabase } from "@/lib/supabase";
 import { STORE_ID } from "@/lib/seed";
 import { useAuthUser } from "@/lib/useInventory";
+import { getNotificationPreferences, notificationEnabled, NOTIFICATION_PREFS_EVENT } from "@/lib/notificationPreferences";
 
 type Notice = {
   id: string;
@@ -72,7 +73,7 @@ async function registerPushSubscription(userId?: string, forceNew = false) {
     const response = await fetch("/api/push/subscribe", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ storeId: STORE_ID, userId, subscription }),
+      body: JSON.stringify({ storeId: STORE_ID, userId, subscription, preferences: getNotificationPreferences() }),
     });
     if (!response.ok) {
       const text = await response.text();
@@ -120,7 +121,9 @@ export function OperationNotifications() {
     if (lastNoticeId.current === next.id) return;
     lastNoticeId.current = next.id;
     setNotice(next);
-    notifySystem(`88포차 ${next.area}`, next.message);
+    if (notificationEnabled(next.area, getNotificationPreferences())) {
+      notifySystem(`88포차 ${next.area}`, next.message);
+    }
   }, []);
 
   useEffect(() => {
@@ -138,6 +141,15 @@ export function OperationNotifications() {
     if (pushStatus.permission !== "granted" || !user || !process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) return;
     registerPushSubscription(user.id).then((status) => setPushStatus(status));
   }, [pushStatus.permission, user]);
+
+  useEffect(() => {
+    function handlePreferenceChange() {
+      if (Notification.permission !== "granted" || !user) return;
+      registerPushSubscription(user.id).then((status) => setPushStatus(status));
+    }
+    window.addEventListener(NOTIFICATION_PREFS_EVENT, handlePreferenceChange);
+    return () => window.removeEventListener(NOTIFICATION_PREFS_EVENT, handlePreferenceChange);
+  }, [user]);
 
   useEffect(() => {
     const channel = new BroadcastChannel("hall-stock-events");

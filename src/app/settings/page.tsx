@@ -9,6 +9,9 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { menuCategoryLabels } from "@/lib/menu";
+import { can } from "@/lib/permissions";
+import { getNotificationPreferences, notificationAreaLabels, setNotificationPreferences, type NotificationPreferences } from "@/lib/notificationPreferences";
+import { STORE_ID } from "@/lib/seed";
 import type { MenuCategory, MenuItem, UserRole } from "@/lib/types";
 import { useAuthUser, useInventory, useOperations } from "@/lib/useInventory";
 
@@ -20,9 +23,9 @@ const roleLabels: Record<UserRole, string> = {
 };
 
 const roleDescriptions: Record<UserRole, string> = {
-  staff: "웨이팅, 예약, 테이블, 재고, 정산 입력",
-  manager: "스태프 기능 + 메뉴/사용자 확인",
-  admin: "운영 설정과 사용자 추가",
+  staff: "웨이팅, 예약, 테이블, 재고, 판매 불가 입력",
+  manager: "스태프 기능 + 정산, 오픈/마감",
+  admin: "매니저 기능 + 사용자 추가, 메뉴 관리",
   developer: "전체 권한, 사용자 삭제/권한 변경",
 };
 
@@ -34,7 +37,9 @@ export default function SettingsPage() {
   const [code, setCode] = useState("");
   const [role, setRole] = useState<UserRole>("staff");
   const [pushStatus, setPushStatus] = useState<PushStatus | null>(null);
+  const [notificationPreferences, setLocalNotificationPreferences] = useState<NotificationPreferences>(() => getNotificationPreferences());
   const [testingPush, setTestingPush] = useState(false);
+  const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
   const [menuForm, setMenuForm] = useState<{ id?: string; name: string; category: MenuCategory; price: number }>({
     name: "",
     category: "main",
@@ -61,6 +66,9 @@ export default function SettingsPage() {
 
   const activeStaff = staff.filter((member) => member.active);
   const visibleArchives = user?.role === "developer" ? sessionArchives : [];
+  const canManageUsers = can(user, "manageUsers");
+  const canManageRoles = can(user, "manageRoles");
+  const canManageMenus = can(user, "manageMenus");
 
   useEffect(() => {
     function onPushStatus(event: Event) {
@@ -75,12 +83,18 @@ export default function SettingsPage() {
     setPushStatus(status);
   }
 
+  function updateNotificationPreference(area: keyof NotificationPreferences, enabled: boolean) {
+    const next = { ...notificationPreferences, [area]: enabled };
+    setLocalNotificationPreferences(next);
+    setNotificationPreferences(next);
+  }
+
   async function testPush() {
     setTestingPush(true);
     const response = await fetch("/api/push/notify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ storeId: "demo-store", area: "테스트", message: "88포차 앱 알림 테스트입니다.", url: "/dashboard" }),
+      body: JSON.stringify({ storeId: STORE_ID, area: "테스트", message: "88포차 앱 알림 테스트입니다.", url: "/dashboard" }),
     });
     const result = await response.json().catch(() => ({ sent: 0, failed: 0 }));
     setPushStatus({
@@ -113,10 +127,37 @@ export default function SettingsPage() {
             <Button variant="secondary" onClick={reconnectPush}>알림 다시 연결</Button>
             <Button variant="secondary" onClick={testPush} disabled={testingPush}>{testingPush ? "발송 중" : "테스트 발송"}</Button>
           </div>
+          <div className="mt-4 space-y-2">
+            {notificationAreaLabels.map(({ area, label, description }) => (
+              <label key={area} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background/60 p-3">
+                <span className="min-w-0">
+                  <span className="block font-bold">{label}</span>
+                  <span className="block text-xs text-secondary">{description}</span>
+                </span>
+                <input
+                  type="checkbox"
+                  className="h-5 w-5 accent-[#C9151E]"
+                  checked={notificationPreferences[area]}
+                  onChange={(event) => updateNotificationPreference(area, event.target.checked)}
+                />
+              </label>
+            ))}
+          </div>
         </Card>
-        {user?.role === "developer" || user?.role === "admin" ? (
+        <Card>
+          <div className="mb-3 font-semibold">권한 체계</div>
+          <div className="space-y-2">
+            {(Object.keys(roleLabels) as UserRole[]).map((value) => (
+              <div key={value} className="rounded-lg border border-border bg-background/60 p-3">
+                <div className="font-bold">{roleLabels[value]}</div>
+                <div className="mt-1 text-sm leading-5 text-secondary">{roleDescriptions[value]}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+        {canManageUsers || canManageMenus ? (
           <>
-            <Card>
+            {canManageUsers ? <Card>
               <div className="mb-3 flex items-center gap-2 font-semibold">
                 <UserPlus size={18} /> 사용자 코드 관리
               </div>
@@ -141,7 +182,7 @@ export default function SettingsPage() {
                       <div className="mt-1 text-xs text-secondary">{roleLabels[member.role]} · {roleDescriptions[member.role]}</div>
                     </div>
                     <div className="shrink-0 space-y-2">
-                      {user?.role === "developer" && member.id !== user.id && member.role !== "developer" ? (
+                      {canManageRoles && member.id !== user?.id && member.role !== "developer" ? (
                         <>
                           <select
                             className="h-9 rounded-lg border border-border bg-surface px-2 text-sm text-primary"
@@ -167,8 +208,8 @@ export default function SettingsPage() {
                   </div>
                 ))}
               </div>
-            </Card>
-            <Card>
+            </Card> : null}
+            {canManageMenus ? <Card>
               <div className="mb-3 font-semibold">메뉴 관리</div>
               <form className="space-y-2" onSubmit={onMenuSubmit}>
                 <Input placeholder="메뉴명" value={menuForm.name} onChange={(event) => setMenuForm((current) => ({ ...current, name: event.target.value }))} required />
@@ -205,7 +246,7 @@ export default function SettingsPage() {
                   </div>
                 ))}
               </div>
-            </Card>
+            </Card> : null}
           </>
         ) : null}
         <Card>
@@ -226,9 +267,11 @@ export default function SettingsPage() {
             {visibleArchives.length ? (
               <div className="space-y-3">
                 {visibleArchives.map((archive) => {
-                  const archivedSettlement = archive.settlement || { fruitCount: 0, cashEntries: [], transferEntries: [] };
-                  const cashTotal = archivedSettlement.cashEntries.reduce((sum, entry) => sum + entry.amount, 0);
-                  const transferTotal = archivedSettlement.transferEntries.reduce((sum, entry) => sum + entry.amount, 0);
+                  const cashEntries = archive.settlement?.cashEntries || [];
+                  const transferEntries = archive.settlement?.transferEntries || [];
+                  const fruitCount = archive.settlement?.fruitCount || 0;
+                  const cashTotal = cashEntries.reduce((sum, entry) => sum + entry.amount, 0);
+                  const transferTotal = transferEntries.reduce((sum, entry) => sum + entry.amount, 0);
                   return (
                     <details key={archive.id} className="rounded-lg border border-border bg-background/60 p-3">
                       <summary className="cursor-pointer list-none">
@@ -264,7 +307,7 @@ export default function SettingsPage() {
                         </div>
                         <div className="rounded-lg bg-surface p-2">
                           <div className="text-xs text-secondary">모듬과일</div>
-                          <div className="font-bold">{archivedSettlement.fruitCount}개</div>
+                          <div className="font-bold">{fruitCount}개</div>
                         </div>
                         <div className="col-span-2 rounded-lg bg-surface p-2">
                           <div className="text-xs text-secondary">정산</div>
@@ -272,6 +315,56 @@ export default function SettingsPage() {
                             현금 {cashTotal.toLocaleString("ko-KR")}원 · 계좌 {transferTotal.toLocaleString("ko-KR")}원
                           </div>
                         </div>
+                      </div>
+                      <div className="mt-3 space-y-3 text-sm">
+                        {archive.tableMemos.length ? (
+                          <div className="rounded-lg bg-surface p-3">
+                            <div className="mb-2 font-bold">테이블 주문 상세</div>
+                            <div className="space-y-2">
+                              {archive.tableMemos.map((memo) => (
+                                <div key={memo.id} className="border-t border-border pt-2 first:border-t-0 first:pt-0">
+                                  <div className="font-semibold">{memo.tableNo}번 · {memo.updatedByName}</div>
+                                  <div className="mt-1 text-secondary">
+                                    {memo.orders.map((order) => `${order.name} x${order.quantity}`).join(", ")}
+                                  </div>
+                                  {memo.note ? <div className="mt-1 text-xs text-secondary">메모: {memo.note}</div> : null}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+                        {archive.bookings.length ? (
+                          <div className="rounded-lg bg-surface p-3">
+                            <div className="mb-2 font-bold">예약 상세</div>
+                            <div className="space-y-1 text-secondary">
+                              {archive.bookings.map((booking) => (
+                                <div key={booking.id}>{booking.time} · {booking.title} · {booking.partySize}명 · {booking.menu || "주메뉴 없음"}</div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+                        {archive.soldOutMenus.length ? (
+                          <div className="rounded-lg bg-surface p-3">
+                            <div className="mb-2 font-bold">판매 불가 메뉴</div>
+                            <div className="text-secondary">{archive.soldOutMenus.map((menu) => menu.menuName).join(", ")}</div>
+                          </div>
+                        ) : null}
+                        {([["현금", cashEntries], ["계좌이체", transferEntries]] as const).map(([label, entries]) => (
+                          entries.length ? (
+                            <div key={label} className="rounded-lg bg-surface p-3">
+                              <div className="mb-2 font-bold">{label} 영수증</div>
+                              <div className="grid grid-cols-2 gap-2">
+                                {entries.map((entry) => (
+                                  <button key={entry.id} type="button" className="rounded-lg border border-border bg-background/60 p-2 text-left" onClick={() => entry.receiptImage && setSelectedReceipt(entry.receiptImage)}>
+                                    <div className="font-bold">{entry.amount.toLocaleString("ko-KR")}원</div>
+                                    <div className="text-xs text-secondary">{entry.memo || entry.createdByName}</div>
+                                    {entry.receiptImage ? <img className="mt-2 h-20 w-full rounded-lg object-cover" src={entry.receiptImage} alt="영수증" /> : null}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null
+                        ))}
                       </div>
                       {archive.summary?.memo ? <p className="mt-3 text-sm text-secondary">{archive.summary.memo}</p> : null}
                     </details>
@@ -293,6 +386,14 @@ export default function SettingsPage() {
           <LogOut size={18} /> 로그아웃
         </Button>
       </div>
+      {selectedReceipt ? (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-4" onClick={() => setSelectedReceipt(null)}>
+          <div className="max-h-full w-full max-w-md" onClick={(event) => event.stopPropagation()}>
+            <img className="max-h-[82dvh] w-full rounded-xl object-contain" src={selectedReceipt} alt="확대 영수증" />
+            <Button className="mt-3 w-full" variant="secondary" onClick={() => setSelectedReceipt(null)}>닫기</Button>
+          </div>
+        </div>
+      ) : null}
     </MobileShell>
   );
 }

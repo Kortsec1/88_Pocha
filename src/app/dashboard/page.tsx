@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { DoorOpen, Moon, SunMedium } from "lucide-react";
+import { AlertTriangle, Ban, CalendarClock, ClipboardCheck, DoorOpen, Moon, ReceiptText, SunMedium } from "lucide-react";
 import { ItemCard } from "@/components/inventory/ItemCard";
 import { MobileShell } from "@/components/layout/MobileShell";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { can } from "@/lib/permissions";
 import { useAuthUser, useInventory, useOperations } from "@/lib/useInventory";
 import { formatDate } from "@/lib/utils";
 
@@ -24,6 +25,14 @@ function DashboardContent() {
   const transferTotal = settlement.transferEntries.reduce((sum, entry) => sum + entry.amount, 0);
   const settlementTotal = cashTotal + transferTotal;
   const isOpen = businessSession?.status === "open";
+  const canManageBusiness = can(user, "manageBusinessSession");
+  const operationChecks = [
+    { label: "미처리 테이블", value: tableMemos.length, href: "/tables", icon: ClipboardCheck, danger: tableMemos.length > 0 },
+    { label: "예정 예약", value: activeBookings.length, href: "/bookings", icon: CalendarClock, danger: activeBookings.length > 0 },
+    { label: "정산 입력", value: settlementTotal ? `${settlementTotal.toLocaleString("ko-KR")}원` : "미입력", href: "/settlement", icon: ReceiptText, danger: settlementTotal === 0 },
+    { label: "판매 불가", value: soldOutMenus.length, href: "/soldout", icon: Ban, danger: soldOutMenus.length > 0 },
+  ];
+  const attentionCount = operationChecks.filter((check) => check.danger).length + needs.length;
   const dashboardCards = [
     { href: "/items", label: "재고 점검", value: needs.length, caption: `정상 ${normalCount} / 전체 ${items.length}`, tone: "text-accent bg-accent/[0.06] border-accent/15" },
     { href: "/reservations", label: "웨이팅", value: waitingReservations.length, caption: "현재 접수", tone: "text-warning bg-warning/[0.08] border-warning/20" },
@@ -69,13 +78,34 @@ function DashboardContent() {
               {isOpen ? `${businessSession?.openedByName} · ${new Date(businessSession.openedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}` : "오픈 버튼으로 운영을 시작하세요."}
             </p>
           </div>
-          {isOpen ? (
+          {isOpen && canManageBusiness ? (
             <Link href="/closing" className="rounded-lg bg-white px-4 py-3 text-sm font-black text-accent">마감</Link>
-          ) : (
+          ) : !isOpen && canManageBusiness ? (
             <button type="button" onClick={handleOpen} className="rounded-lg bg-white px-4 py-3 text-sm font-black text-accent">
               <DoorOpen size={18} className="mb-1 inline" /> 오픈
             </button>
-          )}
+          ) : null}
+        </div>
+      </section>
+
+      <section className="mb-3 rounded-lg border border-border bg-surface p-4 shadow-soft">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <div className="text-sm font-bold text-accent">운영 체크</div>
+            <div className="mt-1 text-xl font-black">{attentionCount ? `${attentionCount}개 확인 필요` : "정상 운영 중"}</div>
+          </div>
+          <AlertTriangle className={attentionCount ? "text-warning" : "text-success"} size={24} />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {operationChecks.map(({ label, value, href, icon: Icon, danger }) => (
+            <Link key={label} href={href} className="rounded-lg border border-border bg-background/60 p-3 active:scale-[0.98]">
+              <div className="flex items-center justify-between gap-2">
+                <Icon size={17} className={danger ? "text-warning" : "text-success"} />
+                <span className="text-xs font-bold text-secondary">{label}</span>
+              </div>
+              <div className="mt-2 truncate text-lg font-black">{value}</div>
+            </Link>
+          ))}
         </div>
       </section>
 
@@ -139,7 +169,7 @@ function DashboardContent() {
                     <div className="font-semibold">{booking.title}</div>
                     <div className="text-sm text-secondary">{booking.time} · {booking.partySize}명 · {booking.tables.join(", ") || "테이블 미지정"}</div>
                   </div>
-                  <span className="text-sm text-accent">{booking.menu}</span>
+                  <span className="text-sm text-accent">{booking.menu || "주메뉴 미지정"}</span>
                 </div>
               </Card>
             ))}

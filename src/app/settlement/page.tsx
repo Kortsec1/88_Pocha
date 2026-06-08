@@ -6,6 +6,7 @@ import { MobileShell } from "@/components/layout/MobileShell";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
+import { can } from "@/lib/permissions";
 import { useAuthUser, useOperations } from "@/lib/useInventory";
 import type { PaymentEntry, PaymentMethod } from "@/lib/types";
 
@@ -113,9 +114,11 @@ function PaymentForm({ label, method, onSubmit }: { label: string; method: Payme
 export default function SettlementPage() {
   const { user } = useAuthUser();
   const { settlement, updateFruitCount, addPaymentEntry, removePaymentEntry } = useOperations(user);
+  const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
   const cashTotal = useMemo(() => total(settlement.cashEntries), [settlement.cashEntries]);
   const transferTotal = useMemo(() => total(settlement.transferEntries), [settlement.transferEntries]);
   const combinedTotal = cashTotal + transferTotal;
+  const canManageSettlement = can(user, "manageSettlement");
 
   return (
     <MobileShell>
@@ -124,7 +127,14 @@ export default function SettlementPage() {
         <h1 className="mt-1 text-3xl font-black">일일 정산</h1>
       </header>
 
-      <section className="grid grid-cols-2 gap-2">
+      {!canManageSettlement ? (
+        <Card>
+          <div className="text-lg font-bold">정산 권한이 필요합니다.</div>
+          <p className="mt-2 text-sm leading-6 text-secondary">정산 입력과 영수증 관리는 매니저 이상 권한에서 사용할 수 있습니다.</p>
+        </Card>
+      ) : null}
+
+      {canManageSettlement ? <section className="grid grid-cols-2 gap-2">
         <Card className="bg-accent text-white">
           <p className="text-sm font-bold text-white/80">현금+계좌</p>
           <div className="mt-2 text-3xl font-black">{currency(combinedTotal)}</div>
@@ -137,9 +147,9 @@ export default function SettlementPage() {
             <Button variant="secondary" onClick={() => updateFruitCount(settlement.fruitCount + 1)}>+</Button>
           </div>
         </Card>
-      </section>
+      </section> : null}
 
-      <section className="mt-3 grid grid-cols-2 gap-2">
+      {canManageSettlement ? <section className="mt-3 grid grid-cols-2 gap-2">
         <Card>
           <p className="text-sm text-secondary">현금 합계</p>
           <div className="mt-1 text-2xl font-black">{currency(cashTotal)}</div>
@@ -150,14 +160,14 @@ export default function SettlementPage() {
           <div className="mt-1 text-2xl font-black">{currency(transferTotal)}</div>
           <p className="mt-1 text-xs text-secondary">{settlement.transferEntries.length}건</p>
         </Card>
-      </section>
+      </section> : null}
 
-      <section className="mt-5 space-y-3">
+      {canManageSettlement ? <section className="mt-5 space-y-3">
         <PaymentForm label="현금" method="cash" onSubmit={addPaymentEntry} />
         <PaymentForm label="계좌이체" method="transfer" onSubmit={addPaymentEntry} />
-      </section>
+      </section> : null}
 
-      <section className="mt-6 space-y-4">
+      {canManageSettlement ? <section className="mt-6 space-y-4">
         {[
           ["현금 내역", "cash", settlement.cashEntries] as const,
           ["계좌이체 내역", "transfer", settlement.transferEntries] as const,
@@ -173,7 +183,11 @@ export default function SettlementPage() {
                       <div className="text-xs text-secondary">{new Date(entry.createdAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} · {entry.createdByName}</div>
                       {entry.memo ? <p className="mt-1 text-sm text-secondary">{entry.memo}</p> : null}
                     </div>
-                    {entry.receiptImage ? <Image className="h-14 w-14 rounded-lg object-cover" src={entry.receiptImage} alt="영수증" width={56} height={56} unoptimized /> : null}
+                    {entry.receiptImage ? (
+                      <button type="button" className="shrink-0" onClick={() => setSelectedReceipt(entry.receiptImage || null)} aria-label="영수증 크게 보기">
+                        <Image className="h-14 w-14 rounded-lg object-cover" src={entry.receiptImage} alt="영수증" width={56} height={56} unoptimized />
+                      </button>
+                    ) : null}
                   </div>
                   <Button className="mt-3 w-full" variant="ghost" onClick={() => removePaymentEntry(method, entry.id)}>기록 삭제</Button>
                 </Card>
@@ -181,7 +195,15 @@ export default function SettlementPage() {
             </div>
           </div>
         ))}
-      </section>
+      </section> : null}
+      {selectedReceipt ? (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-4" onClick={() => setSelectedReceipt(null)}>
+          <div className="max-h-full w-full max-w-md" onClick={(event) => event.stopPropagation()}>
+            <img className="max-h-[82dvh] w-full rounded-xl object-contain" src={selectedReceipt} alt="확대 영수증" />
+            <Button className="mt-3 w-full" variant="secondary" onClick={() => setSelectedReceipt(null)}>닫기</Button>
+          </div>
+        </div>
+      ) : null}
     </MobileShell>
   );
 }

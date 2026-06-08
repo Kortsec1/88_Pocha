@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import webPush from "web-push";
+import { notificationEnabled } from "@/lib/notificationPreferences";
 
 function getClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -24,15 +25,16 @@ export async function POST(request: Request) {
 
   const body = await request.json();
   const storeId = body.storeId || "demo-store";
+  const area = body.area || "업데이트";
   const payload = JSON.stringify({
-    title: `88포차 ${body.area || "업데이트"}`,
+    title: `88포차 ${area}`,
     body: body.message || "운영 정보가 업데이트됐습니다.",
     url: body.url || "/dashboard",
   });
 
   const { data, error } = await supabase
     .from("push_subscriptions")
-    .select("endpoint, subscription")
+    .select("endpoint, subscription, preferences")
     .eq("store_id", storeId)
     .eq("active", true);
 
@@ -41,6 +43,7 @@ export async function POST(request: Request) {
   let sent = 0;
   let failed = 0;
   await Promise.all(data.map(async (row) => {
+    if (!notificationEnabled(area, row.preferences)) return;
     try {
       await webPush.sendNotification(row.subscription, payload);
       sent += 1;

@@ -148,10 +148,14 @@ create table if not exists public.push_subscriptions (
   store_id text not null references public.stores(id) on delete cascade,
   user_id text,
   subscription jsonb not null,
+  preferences jsonb not null default '{}'::jsonb,
   active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table if exists public.push_subscriptions
+add column if not exists preferences jsonb not null default '{}'::jsonb;
 
 create table if not exists public.business_sessions (
   id uuid primary key default gen_random_uuid(),

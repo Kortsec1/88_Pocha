@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
-import { tableAreas } from "@/lib/menu";
+import { menuCategoryLabels, tableAreas } from "@/lib/menu";
+import type { MenuCategory } from "@/lib/types";
 import { useAuthUser, useOperations } from "@/lib/useInventory";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +26,7 @@ const statusLabels = {
 };
 
 const partySizeOptions = Array.from({ length: 40 }, (_, index) => index + 1);
+const menuCategories: MenuCategory[] = ["main", "fried", "meal", "side", "alcohol", "drink"];
 
 export default function BookingsPage() {
   const { user } = useAuthUser();
@@ -32,11 +34,19 @@ export default function BookingsPage() {
   const [title, setTitle] = useState("");
   const [partySize, setPartySize] = useState(4);
   const [menu, setMenu] = useState("");
+  const [menuQuery, setMenuQuery] = useState("");
+  const [category, setCategory] = useState<MenuCategory>("main");
   const [time, setTime] = useState("");
   const [tables, setTables] = useState<string[]>([]);
   const [memo, setMemo] = useState("");
 
   const activeBookings = useMemo(() => bookings.filter((booking) => booking.status === "scheduled" || booking.status === "seated"), [bookings]);
+  const selectableMenus = useMemo(() => {
+    return menus
+      .filter((item) => item.category === category)
+      .filter((item) => !menuQuery || item.name.includes(menuQuery))
+      .slice(0, 18);
+  }, [category, menuQuery, menus]);
 
   function toggleTable(table: string) {
     setTables((current) => current.includes(table) ? current.filter((value) => value !== table) : [...current, table]);
@@ -44,10 +54,11 @@ export default function BookingsPage() {
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    await addBooking({ title, partySize, menu, time, tables, memo: memo.trim() || undefined });
+    await addBooking({ title, partySize, menu: menu || menuQuery.trim(), time, tables, memo: memo.trim() || undefined });
     setTitle("");
     setPartySize(4);
     setMenu("");
+    setMenuQuery("");
     setTime("");
     setTables([]);
     setMemo("");
@@ -74,10 +85,44 @@ export default function BookingsPage() {
             </select>
             <Input className="min-w-0" type="time" value={time} onChange={(event) => setTime(event.target.value)} required />
           </div>
-          <Input list="booking-menu-list" placeholder="대표 메뉴" value={menu} onChange={(event) => setMenu(event.target.value)} required />
-          <datalist id="booking-menu-list">
-            {menus.map((item) => <option key={item.id} value={item.name} />)}
-          </datalist>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-sm font-bold text-secondary">주문 예정 메뉴</div>
+              {menu ? <button type="button" className="text-sm font-bold text-danger" onClick={() => setMenu("")}>선택 해제</button> : null}
+            </div>
+            <Input placeholder="메뉴 검색 또는 직접 입력" value={menu || menuQuery} onChange={(event) => {
+              setMenu("");
+              setMenuQuery(event.target.value);
+            }} />
+            <div className="flex gap-2 overflow-x-auto py-1">
+              {menuCategories.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setCategory(value)}
+                  className={cn("h-10 shrink-0 rounded-full border border-border bg-elevated px-4 text-sm font-bold text-secondary", category === value && "border-accent bg-accent text-white")}
+                >
+                  {menuCategoryLabels[value]}
+                </button>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {selectableMenus.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    setMenu(item.name);
+                    setMenuQuery("");
+                  }}
+                  className={cn("min-h-14 rounded-lg border border-border bg-elevated p-2 text-left text-sm font-bold", menu === item.name && "border-accent bg-accent/10 text-accent")}
+                >
+                  <span className="line-clamp-2">{item.name}</span>
+                </button>
+              ))}
+            </div>
+            {menu ? <div className="rounded-lg border border-accent/20 bg-accent/5 px-3 py-2 text-sm font-bold text-accent">선택됨: {menu}</div> : null}
+          </div>
           <div className="flex gap-2 overflow-x-auto py-1">
             {selectableTables.map((table) => (
               <button
@@ -102,7 +147,7 @@ export default function BookingsPage() {
               <div>
                 <p className="text-sm text-secondary">{booking.time} · {booking.partySize}명</p>
                 <h2 className="mt-1 text-xl font-bold">{booking.title}</h2>
-                <p className="mt-1 text-sm text-secondary">{booking.menu}</p>
+                <p className="mt-1 text-sm text-secondary">{booking.menu || "주메뉴 미지정"}</p>
                 <p className="mt-2 text-sm text-accent">{booking.tables.join(", ") || "테이블 미지정"}</p>
               </div>
               <span className="rounded-full border border-border px-3 py-1 text-xs text-secondary">{statusLabels[booking.status]}</span>
